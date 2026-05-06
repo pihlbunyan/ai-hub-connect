@@ -11,14 +11,6 @@ import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/chat")({ component: ChatPage });
 
-const ALL_MODELS = [
-  "ChatGPT (GPT-5)",
-  "ChatGPT (GPT-5 mini)",
-  "Claude-equivalent (Gemini 2.5 Pro)",
-  "Gemini Flash",
-  "Grok-equivalent (GPT-5 nano)",
-];
-
 type Result = {
   label: string;
   content?: string;
@@ -32,27 +24,18 @@ type Result = {
 function ChatPage() {
   const { t, mode, user } = useApp();
   const [prompt, setPrompt] = useState("");
-  const [picked, setPicked] = useState<string[]>([
-    "ChatGPT (GPT-5 mini)",
-    "Claude-equivalent (Gemini 2.5 Pro)",
-    "Gemini Flash",
-  ]);
   const [running, setRunning] = useState(false);
   const [results, setResults] = useState<Result[]>([]);
 
-  function toggle(m: string) {
-    setPicked((p) => (p.includes(m) ? p.filter((x) => x !== m) : [...p, m]));
-  }
-
   async function run() {
-    if (!prompt.trim() || picked.length === 0) return;
+    if (!prompt.trim()) return;
     setRunning(true);
     setResults([]);
     try {
       const r = await fetch("/api/public/chat-aggregate", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ prompt, models: picked }),
+        body: JSON.stringify({ prompt, models: ["grok"] }),
       });
       const data = await r.json();
       if (!r.ok) throw new Error(data.error || "Request failed");
@@ -64,7 +47,7 @@ function ChatPage() {
         await supabase.from("chats").insert({
           user_id: user.id,
           prompt,
-          models_used: picked,
+          models_used: ["grok"],
           responses,
           tokens_used: totalTokens,
         });
@@ -98,11 +81,11 @@ function ChatPage() {
           />
           <div className="mt-4 flex items-center justify-between gap-3">
             <div className="text-xs text-muted-foreground">
-              {picked.length} model{picked.length !== 1 ? "s" : ""} · parallel mode
+              1 model selected
             </div>
             <Button
               onClick={run}
-              disabled={running || !prompt.trim() || picked.length === 0}
+              disabled={running || !prompt.trim()}
               size={mode === "lay" ? "lg" : "default"}
               className="gap-2"
             >
@@ -114,18 +97,19 @@ function ChatPage() {
 
         <div className="rounded-2xl border bg-card p-6 shadow-card">
           <Label className={cn(mode === "lay" && "text-base")}>{t.chatModelsLabel}</Label>
-          <div className="mt-3 space-y-2">
-            {ALL_MODELS.map((m) => (
-              <label key={m} className="flex cursor-pointer items-center gap-2 rounded-md border bg-background/50 p-2 text-sm">
-                <input
-                  type="checkbox"
-                  checked={picked.includes(m)}
-                  onChange={() => toggle(m)}
-                  className="h-4 w-4 accent-primary"
-                />
-                <span className={cn(mode === "lay" && "text-base")}>{m}</span>
-              </label>
-            ))}
+          <div className="mt-3">
+            <Button
+              type="button"
+              variant="default"
+              size={mode === "lay" ? "lg" : "default"}
+              className="h-auto w-full justify-start rounded-xl px-4 py-3 text-left shadow-sm"
+            >
+              <div className="flex flex-col items-start">
+                <span className={cn("font-semibold", mode === "lay" && "text-base")}>Grok 4 (Recommended)</span>
+                <span className="text-xs font-normal text-primary-foreground/85">Fast, strong reasoning, best default</span>
+              </div>
+            </Button>
+            <p className="mt-2 text-xs text-muted-foreground">All prompts are currently sent to Grok.</p>
           </div>
         </div>
       </div>

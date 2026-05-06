@@ -1,4 +1,4 @@
-import { Link } from "@tanstack/react-router";
+import { Link, useNavigate } from "@tanstack/react-router";
 import { Star, ExternalLink } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { Database } from "@/integrations/supabase/types";
@@ -8,10 +8,22 @@ export type Tool = Database["public"]["Tables"]["tools"]["Row"];
 
 export function ToolCard({ tool, favorite, onToggleFavorite }: { tool: Tool; favorite?: boolean; onToggleFavorite?: () => void }) {
   const { mode } = useApp();
+  const navigate = useNavigate();
   const summary = mode === "pro" ? tool.pro_summary || tool.description_short : tool.lay_summary || tool.description_short;
   const tags = (mode === "pro" ? tool.pro_tags : tool.lay_tags) || [];
   return (
-    <article className="group relative flex flex-col rounded-2xl border bg-card p-5 shadow-card transition-all hover:-translate-y-0.5 hover:shadow-glow">
+    <article
+      className="group relative flex cursor-pointer flex-col rounded-2xl border bg-card p-5 shadow-card transition-all hover:-translate-y-0.5 hover:shadow-glow"
+      role="link"
+      tabIndex={0}
+      onClick={() => navigate({ to: "/tools/$slug", params: { slug: tool.slug } })}
+      onKeyDown={(e) => {
+        if (e.key === "Enter" || e.key === " ") {
+          e.preventDefault();
+          navigate({ to: "/tools/$slug", params: { slug: tool.slug } });
+        }
+      }}
+    >
       <div className="flex items-start justify-between gap-3">
         <div className="flex items-center gap-3">
           <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-gradient-to-br from-primary/20 to-accent/30 font-display text-lg font-bold text-foreground">
@@ -24,7 +36,10 @@ export function ToolCard({ tool, favorite, onToggleFavorite }: { tool: Tool; fav
         </div>
         {onToggleFavorite && (
           <button
-            onClick={onToggleFavorite}
+            onClick={(e) => {
+              e.stopPropagation();
+              onToggleFavorite();
+            }}
             aria-label="Favorite"
             className={cn(
               "rounded-md p-1.5 transition-colors",
@@ -55,6 +70,7 @@ export function ToolCard({ tool, favorite, onToggleFavorite }: { tool: Tool; fav
         <Link
           to="/tools/$slug"
           params={{ slug: tool.slug }}
+          onClick={(e) => e.stopPropagation()}
           className="font-medium text-primary hover:underline"
         >
           Details →
