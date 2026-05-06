@@ -29,11 +29,11 @@ export const Route = createRootRoute({
     meta: [
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1" },
-      { title: "Lovable App" },
-      { name: "description", content: "Lovable Generated Project" },
-      { name: "author", content: "Lovable" },
-      { property: "og:title", content: "Lovable App" },
-      { property: "og:description", content: "Lovable Generated Project" },
+      { title: "Pihlai — One-stop AI hub" },
+      { name: "description", content: "Discover AI tools, chat with multiple models in parallel, and switch between Pro and Layperson modes." },
+      { name: "author", content: "Pihlai" },
+      { property: "og:title", content: "Pihlai — One-stop AI hub" },
+      { property: "og:description", content: "AI tool directory and multi-model chat aggregator." },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary" },
       { name: "twitter:site", content: "@Lovable" },
@@ -64,6 +64,23 @@ function RootShell({ children }: { children: React.ReactNode }) {
   );
 }
 
+import { AppProvider } from "@/contexts/AppContext";
+import { NavBar } from "@/components/NavBar";
+import { Toaster } from "@/components/ui/sonner";
+
 function RootComponent() {
-  return <Outlet />;
+  return (
+    <AppProvider>
+      <div className="flex min-h-screen flex-col">
+        <NavBar />
+        <main className="flex-1">
+          <Outlet />
+        </main>
+        <footer className="border-t border-border/60 py-6 text-center text-xs text-muted-foreground">
+          Pihlai · Built with Lovable
+        </footer>
+      </div>
+      <Toaster richColors position="top-right" />
+    </AppProvider>
+  );
 }
