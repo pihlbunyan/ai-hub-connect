@@ -14,16 +14,223 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      chats: {
+        Row: {
+          created_at: string
+          id: string
+          models_used: string[]
+          prompt: string
+          responses: Json
+          tokens_used: number
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          models_used?: string[]
+          prompt: string
+          responses?: Json
+          tokens_used?: number
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          models_used?: string[]
+          prompt?: string
+          responses?: Json
+          tokens_used?: number
+          user_id?: string
+        }
+        Relationships: []
+      }
+      favorites: {
+        Row: {
+          created_at: string
+          tool_id: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          tool_id: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          tool_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "favorites_tool_id_fkey"
+            columns: ["tool_id"]
+            isOneToOne: false
+            referencedRelation: "tools"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      profiles: {
+        Row: {
+          created_at: string
+          display_name: string | null
+          email: string | null
+          id: string
+          mode: Database["public"]["Enums"]["user_mode"]
+          preferences: Json
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          display_name?: string | null
+          email?: string | null
+          id: string
+          mode?: Database["public"]["Enums"]["user_mode"]
+          preferences?: Json
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          display_name?: string | null
+          email?: string | null
+          id?: string
+          mode?: Database["public"]["Enums"]["user_mode"]
+          preferences?: Json
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      tool_reviews: {
+        Row: {
+          body: string | null
+          created_at: string
+          id: string
+          rating: number
+          tool_id: string
+          user_id: string
+        }
+        Insert: {
+          body?: string | null
+          created_at?: string
+          id?: string
+          rating: number
+          tool_id: string
+          user_id: string
+        }
+        Update: {
+          body?: string | null
+          created_at?: string
+          id?: string
+          rating?: number
+          tool_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "tool_reviews_tool_id_fkey"
+            columns: ["tool_id"]
+            isOneToOne: false
+            referencedRelation: "tools"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      tools: {
+        Row: {
+          audience: Database["public"]["Enums"]["tool_audience"]
+          category: string
+          cost_tier: Database["public"]["Enums"]["cost_tier"]
+          created_at: string
+          description_long: string | null
+          description_short: string
+          id: string
+          lay_summary: string | null
+          lay_tags: string[]
+          logo_url: string | null
+          name: string
+          pro_summary: string | null
+          pro_tags: string[]
+          rating: number
+          slug: string
+          url: string | null
+          vendor: string | null
+        }
+        Insert: {
+          audience?: Database["public"]["Enums"]["tool_audience"]
+          category: string
+          cost_tier?: Database["public"]["Enums"]["cost_tier"]
+          created_at?: string
+          description_long?: string | null
+          description_short: string
+          id?: string
+          lay_summary?: string | null
+          lay_tags?: string[]
+          logo_url?: string | null
+          name: string
+          pro_summary?: string | null
+          pro_tags?: string[]
+          rating?: number
+          slug: string
+          url?: string | null
+          vendor?: string | null
+        }
+        Update: {
+          audience?: Database["public"]["Enums"]["tool_audience"]
+          category?: string
+          cost_tier?: Database["public"]["Enums"]["cost_tier"]
+          created_at?: string
+          description_long?: string | null
+          description_short?: string
+          id?: string
+          lay_summary?: string | null
+          lay_tags?: string[]
+          logo_url?: string | null
+          name?: string
+          pro_summary?: string | null
+          pro_tags?: string[]
+          rating?: number
+          slug?: string
+          url?: string | null
+          vendor?: string | null
+        }
+        Relationships: []
+      }
+      user_roles: {
+        Row: {
+          id: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Insert: {
+          id?: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Update: {
+          id?: string
+          role?: Database["public"]["Enums"]["app_role"]
+          user_id?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      has_role: {
+        Args: {
+          _role: Database["public"]["Enums"]["app_role"]
+          _user_id: string
+        }
+        Returns: boolean
+      }
     }
     Enums: {
-      [_ in never]: never
+      app_role: "admin" | "moderator" | "user"
+      cost_tier: "free" | "freemium" | "paid" | "enterprise"
+      tool_audience: "pro" | "lay" | "both"
+      user_mode: "pro" | "lay"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -150,6 +357,11 @@ export type CompositeTypes<
 
 export const Constants = {
   public: {
-    Enums: {},
+    Enums: {
+      app_role: ["admin", "moderator", "user"],
+      cost_tier: ["free", "freemium", "paid", "enterprise"],
+      tool_audience: ["pro", "lay", "both"],
+      user_mode: ["pro", "lay"],
+    },
   },
 } as const
