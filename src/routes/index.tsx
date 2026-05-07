@@ -43,6 +43,7 @@ function Index() {
             )}
           </h1>
           <p className="mt-6 max-w-2xl text-lg text-muted-foreground sm:text-xl">{t.heroSubtitle}</p>
+          <HomePihlHost />
           <div className="mt-8 flex flex-wrap gap-3">
             <Button asChild size={mode === "discover" ? "lg" : "default"} className="gap-2">
               <Link to="/tools">
@@ -53,7 +54,6 @@ function Index() {
               <Link to="/chat">{t.ctaSecondary}</Link>
             </Button>
           </div>
-          <HomePihlHost />
         </div>
       </section>
 
@@ -86,14 +86,6 @@ function Index() {
                 : "Choose the experience that fits your workflow while keeping the same core capabilities."
             }
           />
-        </div>
-        <div className="mt-8 rounded-2xl border bg-card p-5 shadow-card">
-          <p className="text-sm font-medium">Need help finding something? Ask Pihl.</p>
-          <p className="mt-1 text-sm text-muted-foreground">
-            {mode === "pro"
-              ? "Use Pihl to get direct route recommendations and workflow guidance."
-              : "Ask Pihl for quick guidance and one-click page suggestions."}
-          </p>
         </div>
       </section>
 

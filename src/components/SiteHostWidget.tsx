@@ -15,7 +15,8 @@ type HostMessage = {
 type HostLink =
   | { label: string; type: "tools"; slug: string }
   | { label: string; type: "topics"; slug: string }
-  | { label: string; type: "news" | "chat" | "dashboard" | "auth" | "toolsIndex" | "topicsIndex" };
+  | { label: string; type: "news" | "chat" | "dashboard" | "auth" | "toolsIndex" | "topicsIndex" }
+  | { label: string; type: "chatPrefill"; prompt: string };
 
 const DEFAULT_DISCOVER =
   "Hi! I am Pihl. Tell me what you want to do and I will point you to the best page, tool, or topic with one click.";
@@ -42,22 +43,26 @@ export function SiteHostWidget() {
   );
 
   const linkSuggestions = useMemo(
-    () => (q: string): HostLink[] => {
+    () => (q: string): { links: HostLink[]; hasStrongMatch: boolean; normalized: string } => {
       const query = q.toLowerCase();
       const links: HostLink[] = [];
+      let hasStrongMatch = false;
 
       if (query.match(/photo|image|edit|picture|midjourney|design/)) {
         links.push({ label: "Midjourney Tool", type: "tools", slug: "midjourney" });
         links.push({ label: "Image Editing Topic", type: "topics", slug: "ai-image-edits" });
+        hasStrongMatch = true;
       }
       if (query.match(/video|clip|movie|runway|kling/)) {
         links.push({ label: "Runway Tool", type: "tools", slug: "runway" });
         links.push({ label: "Multimodal Topic", type: "topics", slug: "multimodal-workflows" });
+        hasStrongMatch = true;
       }
       if (query.match(/agent|automation|workflow|task/)) {
         links.push({ label: "Agents Topic", type: "topics", slug: "building-ai-agents" });
         links.push({ label: "Automation Tools", type: "topics", slug: "automation-no-code" });
         links.push({ label: "Directory", type: "toolsIndex" });
+        hasStrongMatch = true;
       }
       if (query.match(/learn|beginner|study|explain|how/)) {
         links.push({ label: "Learning Topic", type: "topics", slug: "study-learning" });
@@ -67,9 +72,19 @@ export function SiteHostWidget() {
       if (query.match(/favorite|saved|dashboard|account/)) links.push({ label: "Dashboard", type: "dashboard" });
 
       if (!links.length) {
-        links.push({ label: "Explore Topics", type: "topicsIndex" }, { label: "Open Directory", type: "toolsIndex" });
+        links.push(
+          {
+            label: "Open Chat with Prompt",
+            type: "chatPrefill",
+            prompt:
+              mode === "pro"
+                ? `Help me with this goal in a practical, technical way: ${q}`
+                : `Can you help me with this in simple steps: ${q}`,
+          },
+          { label: "Explore Topics", type: "topicsIndex" },
+        );
       }
-      return links.slice(0, mode === "pro" ? 4 : 3);
+      return { links: links.slice(0, mode === "pro" ? 4 : 3), hasStrongMatch, normalized: query };
     },
     [mode],
   );
@@ -93,17 +108,31 @@ export function SiteHostWidget() {
           : mode === "pro"
             ? "I could not reach the model right now. Use these direct routes to continue your workflow."
             : "I had a connection hiccup, but I can still guide you with one-click links below.";
-      setMessages((prev) => [...prev, { role: "assistant", text: reply, links: linkSuggestions(text) }]);
-    } catch {
+      const intent = linkSuggestions(text);
+      const fallbackText =
+        mode === "pro"
+          ? "No dedicated page for that topic yet. Best path is our main chat aggregator where I can generate detailed plans using multiple models."
+          : `Great question! We don't have a dedicated page for ${intent.normalized} yet, but I can help you right now in the main chat with custom ideas.`;
       setMessages((prev) => [
         ...prev,
         {
           role: "assistant",
-          text:
-            mode === "pro"
-              ? "Connection issue. Use these direct links to continue."
-              : "I could not connect right now, but these quick links should help.",
-          links: linkSuggestions(text),
+          text: intent.hasStrongMatch ? reply : fallbackText,
+          links: intent.links,
+        },
+      ]);
+    } catch {
+      const intent = linkSuggestions(text);
+      const fallbackText =
+        mode === "pro"
+          ? "No dedicated page for that topic yet. Best path is our main chat aggregator where I can generate detailed plans using multiple models."
+          : `Great question! We don't have a dedicated page for ${intent.normalized} yet, but I can help you right now in the main chat with custom ideas.`;
+      setMessages((prev) => [
+        ...prev,
+        {
+          role: "assistant",
+          text: intent.hasStrongMatch ? "I found a useful internal route. Use the main button below to jump in." : fallbackText,
+          links: intent.links,
         },
       ]);
     } finally {
@@ -118,7 +147,7 @@ export function SiteHostWidget() {
           <div className="flex items-center gap-2">
             <Bot className="h-4 w-4 text-primary" />
             <div>
-              <p className="text-sm font-semibold">Pihl</p>
+              <p className="text-sm font-semibold">Pihl - Your AI Guide</p>
               <p className="text-[11px] text-muted-foreground">{mode === "pro" ? "Pro guide" : "Discover guide"}</p>
             </div>
           </div>
@@ -139,7 +168,8 @@ export function SiteHostWidget() {
               </div>
               {m.links && m.links.length > 0 && (
                 <div className="flex flex-wrap gap-2">
-                  {m.links.map((lnk) => (
+                  <HostLinkChip key={`${idx}-primary`} link={m.links[0]} primary />
+                  {m.links.slice(1).map((lnk) => (
                     <HostLinkChip key={`${idx}-${lnk.label}`} link={lnk} />
                   ))}
                 </div>
@@ -155,7 +185,7 @@ export function SiteHostWidget() {
             }}
             className="flex items-center gap-2"
           >
-            <Input value={input} onChange={(e) => setInput(e.target.value)} placeholder={placeholder} />
+            <Input value={input} onChange={(e) => setInput(e.target.value)} placeholder={placeholder} className="h-11 text-base" />
             <Button type="submit" size="icon" disabled={busy || !input.trim()}>
               <Send className="h-4 w-4" />
             </Button>
@@ -186,59 +216,68 @@ export function SiteHostWidget() {
   );
 }
 
-function HostLinkChip({ link }: { link: HostLink }) {
+function HostLinkChip({ link, primary = false }: { link: HostLink; primary?: boolean }) {
+  const variant = primary ? "default" : "outline";
+  const label = primary ? "Go there now" : link.label;
   if (link.type === "tools") {
     return (
-      <Button asChild variant="outline" size="sm">
-        <Link to="/tools/$slug" params={{ slug: link.slug }}>{link.label}</Link>
+      <Button asChild variant={variant} size="sm">
+        <Link to="/tools/$slug" params={{ slug: link.slug }}>{label}</Link>
       </Button>
     );
   }
   if (link.type === "topics") {
     return (
-      <Button asChild variant="outline" size="sm">
-        <Link to="/topics/$slug" params={{ slug: link.slug }}>{link.label}</Link>
+      <Button asChild variant={variant} size="sm">
+        <Link to="/topics/$slug" params={{ slug: link.slug }}>{label}</Link>
       </Button>
     );
   }
   if (link.type === "news") {
     return (
-      <Button asChild variant="outline" size="sm">
-        <Link to="/news">{link.label}</Link>
+      <Button asChild variant={variant} size="sm">
+        <Link to="/news">{label}</Link>
       </Button>
     );
   }
   if (link.type === "chat") {
     return (
-      <Button asChild variant="outline" size="sm">
-        <Link to="/chat">{link.label}</Link>
+      <Button asChild variant={variant} size="sm">
+        <Link to="/chat">{label}</Link>
+      </Button>
+    );
+  }
+  if (link.type === "chatPrefill") {
+    return (
+      <Button asChild variant={variant} size="sm">
+        <Link to="/chat" search={{ prompt: link.prompt } as never}>{label}</Link>
       </Button>
     );
   }
   if (link.type === "dashboard") {
     return (
-      <Button asChild variant="outline" size="sm">
-        <Link to="/dashboard">{link.label}</Link>
+      <Button asChild variant={variant} size="sm">
+        <Link to="/dashboard">{label}</Link>
       </Button>
     );
   }
   if (link.type === "auth") {
     return (
-      <Button asChild variant="outline" size="sm">
-        <Link to="/auth">{link.label}</Link>
+      <Button asChild variant={variant} size="sm">
+        <Link to="/auth">{label}</Link>
       </Button>
     );
   }
   if (link.type === "topicsIndex") {
     return (
-      <Button asChild variant="outline" size="sm">
-        <Link to="/topics">{link.label}</Link>
+      <Button asChild variant={variant} size="sm">
+        <Link to="/topics">{label}</Link>
       </Button>
     );
   }
   return (
-    <Button asChild variant="outline" size="sm">
-      <Link to="/tools">{link.label}</Link>
+    <Button asChild variant={variant} size="sm">
+      <Link to="/tools">{label}</Link>
     </Button>
   );
 }

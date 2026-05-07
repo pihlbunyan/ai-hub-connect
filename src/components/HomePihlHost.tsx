@@ -4,44 +4,72 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Link } from "@tanstack/react-router";
 import { Bot, Send } from "lucide-react";
+import { cn } from "@/lib/utils";
 
 type HostLink =
   | { label: string; type: "tools"; slug: string }
   | { label: string; type: "topics"; slug: string }
-  | { label: string; type: "news" | "chat" | "dashboard" | "toolsIndex" | "topicsIndex" };
+  | { label: string; type: "news" | "chat" | "dashboard" | "toolsIndex" | "topicsIndex" }
+  | { label: string; type: "chatPrefill"; prompt: string };
+
+type HostMessage = {
+  role: "assistant" | "user";
+  text: string;
+  links?: HostLink[];
+};
 
 export function HomePihlHost() {
   const { mode } = useApp();
   const [input, setInput] = useState("");
   const [busy, setBusy] = useState(false);
-  const [answer, setAnswer] = useState(
-    mode === "pro"
-      ? "I am Pihl. Tell me your goal and I will route you to the right tool, topic, or workflow."
-      : "I am Pihl. Tell me what you want to do and I will point you to the best next page.",
-  );
-  const [links, setLinks] = useState<HostLink[]>([
-    { label: "Open Directory", type: "toolsIndex" },
-    { label: "Explore Topics", type: "topicsIndex" },
+  const [messages, setMessages] = useState<HostMessage[]>([
+    {
+      role: "assistant",
+      text:
+        mode === "pro"
+          ? "Welcome. I can route you to the exact page, topic, or tool."
+          : "Welcome! I can help you find the right page, topic, or tool.",
+      links: [
+        { label: "Open Directory", type: "toolsIndex" },
+        { label: "Explore Topics", type: "topicsIndex" },
+      ],
+    },
   ]);
 
   const placeholder = mode === "pro" ? "Ask Pihl for a route..." : "Ask Pihl for help...";
 
-  function inferLinks(query: string): HostLink[] {
+  function inferLinks(query: string): { links: HostLink[]; hasStrongMatch: boolean; normalized: string } {
     const q = query.toLowerCase();
     const out: HostLink[] = [];
+    let hasStrongMatch = false;
     if (q.match(/photo|image|edit|picture/)) {
       out.push({ label: "Midjourney Tool", type: "tools", slug: "midjourney" });
       out.push({ label: "Image Topic", type: "topics", slug: "ai-image-edits" });
+      hasStrongMatch = true;
     }
     if (q.match(/video|clip|movie/)) {
       out.push({ label: "Runway Tool", type: "tools", slug: "runway" });
       out.push({ label: "Multimodal Topic", type: "topics", slug: "multimodal-workflows" });
+      hasStrongMatch = true;
     }
     if (q.match(/learn|how|beginner|topic/)) out.push({ label: "Explore Topics", type: "topicsIndex" });
     if (q.match(/tool|compare|directory/)) out.push({ label: "Open Directory", type: "toolsIndex" });
     if (q.match(/news|trend|latest/)) out.push({ label: "Latest News", type: "news" });
     if (q.match(/chat|prompt|ask/)) out.push({ label: "Open Chat", type: "chat" });
-    return out.length ? out.slice(0, 3) : [{ label: "Explore Topics", type: "topicsIndex" }];
+    if (!out.length) {
+      out.push(
+        {
+          label: "Open Chat with Prompt",
+          type: "chatPrefill",
+          prompt:
+            mode === "pro"
+              ? `Help me with this goal in a practical, technical way: ${q}`
+              : `Can you help me with this in simple steps: ${q}`,
+        },
+        { label: "Explore Topics", type: "topicsIndex" },
+      );
+    }
+    return { links: out.slice(0, 3), hasStrongMatch, normalized: q };
   }
 
   async function ask() {
@@ -49,6 +77,7 @@ export function HomePihlHost() {
     if (!text || busy) return;
     setBusy(true);
     setInput("");
+    setMessages((prev) => [...prev, { role: "user", text }]);
     try {
       const r = await fetch("/api/public/site-host", {
         method: "POST",
@@ -56,26 +85,74 @@ export function HomePihlHost() {
         body: JSON.stringify({ prompt: text, mode }),
       });
       const data = await r.json();
-      setAnswer(r.ok ? data.content : "I could not connect right now, but these links should help.");
-      setLinks(inferLinks(text));
+      const intent = inferLinks(text);
+      const fallbackText =
+        mode === "pro"
+          ? "No dedicated page for that topic yet. Best path is our main chat aggregator where I can generate detailed plans using multiple models."
+          : `Great question! We don't have a dedicated page for ${intent.normalized} yet, but I can help you right now in the main chat with custom ideas.`;
+      setMessages((prev) => [
+        ...prev,
+        {
+          role: "assistant",
+          text: intent.hasStrongMatch
+            ? r.ok
+              ? data.content
+              : "I found a useful internal route. Use the main button below to jump in."
+            : fallbackText,
+          links: intent.links,
+        },
+      ]);
     } catch {
-      setAnswer("I could not connect right now, but these links should help.");
-      setLinks(inferLinks(text));
+      const intent = inferLinks(text);
+      const fallbackText =
+        mode === "pro"
+          ? "No dedicated page for that topic yet. Best path is our main chat aggregator where I can generate detailed plans using multiple models."
+          : `Great question! We don't have a dedicated page for ${intent.normalized} yet, but I can help you right now in the main chat with custom ideas.`;
+      setMessages((prev) => [
+        ...prev,
+        {
+          role: "assistant",
+          text: intent.hasStrongMatch
+            ? "I found a useful internal route. Use the main button below to jump in."
+            : fallbackText,
+          links: intent.links,
+        },
+      ]);
     } finally {
       setBusy(false);
     }
   }
 
   return (
-    <div className="mt-6 max-w-2xl rounded-2xl border bg-card p-4 shadow-card">
-      <div className="mb-2 flex items-center gap-2">
-        <Bot className="h-4 w-4 text-primary" />
-        <p className="text-sm font-semibold">Ask Pihl</p>
+    <div className="mx-auto mt-6 w-full max-w-4xl rounded-2xl border-2 border-primary/20 bg-card/95 p-4 shadow-card">
+      <div className="mb-2 border-b pb-3">
+        <p className="flex items-center gap-2 text-sm font-semibold">
+          <Bot className="h-4 w-4 text-primary" />
+          Need help finding something? Ask Pihl, our AI host.
+        </p>
       </div>
-      <p className="text-sm text-muted-foreground">{answer}</p>
-      <div className="mt-3 flex flex-wrap gap-2">
-        {links.map((link, idx) => (
-          <HostLinkChip key={`${link.label}-${idx}`} link={link} />
+      <div className="mt-3 max-h-[280px] space-y-3 overflow-y-auto rounded-xl border bg-background/50 p-3">
+        {messages.map((msg, idx) => (
+          <div key={idx} className={cn("space-y-2", msg.role === "user" ? "text-right" : "text-left")}>
+            <div
+              className={cn(
+                "inline-block rounded-xl px-3 py-2 text-sm",
+                msg.role === "user" ? "bg-primary text-primary-foreground" : "border bg-card text-foreground",
+              )}
+            >
+              {msg.text}
+            </div>
+            {msg.links && msg.links.length > 0 && (
+              <div className="flex flex-wrap gap-2">
+                {msg.links.slice(0, 1).map((link, linkIdx) => (
+                  <HostLinkChip key={`${idx}-${link.label}-${linkIdx}`} link={link} primary />
+                ))}
+                {msg.links.slice(1).map((link, linkIdx) => (
+                  <HostLinkChip key={`${idx}-${link.label}-secondary-${linkIdx}`} link={link} />
+                ))}
+              </div>
+            )}
+          </div>
         ))}
       </div>
       <form
@@ -85,7 +162,12 @@ export function HomePihlHost() {
           void ask();
         }}
       >
-        <Input value={input} onChange={(e) => setInput(e.target.value)} placeholder={placeholder} />
+        <Input
+          value={input}
+          onChange={(e) => setInput(e.target.value)}
+          placeholder={placeholder}
+          className="h-11 text-base"
+        />
         <Button type="submit" size="icon" disabled={busy || !input.trim()}>
           <Send className="h-4 w-4" />
         </Button>
@@ -94,12 +176,15 @@ export function HomePihlHost() {
   );
 }
 
-function HostLinkChip({ link }: { link: HostLink }) {
-  if (link.type === "tools") return <Button asChild variant="outline" size="sm"><Link to="/tools/$slug" params={{ slug: link.slug }}>{link.label}</Link></Button>;
-  if (link.type === "topics") return <Button asChild variant="outline" size="sm"><Link to="/topics/$slug" params={{ slug: link.slug }}>{link.label}</Link></Button>;
-  if (link.type === "news") return <Button asChild variant="outline" size="sm"><Link to="/news">{link.label}</Link></Button>;
-  if (link.type === "chat") return <Button asChild variant="outline" size="sm"><Link to="/chat">{link.label}</Link></Button>;
-  if (link.type === "dashboard") return <Button asChild variant="outline" size="sm"><Link to="/dashboard">{link.label}</Link></Button>;
-  if (link.type === "topicsIndex") return <Button asChild variant="outline" size="sm"><Link to="/topics">{link.label}</Link></Button>;
-  return <Button asChild variant="outline" size="sm"><Link to="/tools">{link.label}</Link></Button>;
+function HostLinkChip({ link, primary = false }: { link: HostLink; primary?: boolean }) {
+  const variant = primary ? "default" : "outline";
+  const label = primary ? "Go there now" : link.label;
+  if (link.type === "tools") return <Button asChild variant={variant} size="sm"><Link to="/tools/$slug" params={{ slug: link.slug }}>{label}</Link></Button>;
+  if (link.type === "topics") return <Button asChild variant={variant} size="sm"><Link to="/topics/$slug" params={{ slug: link.slug }}>{label}</Link></Button>;
+  if (link.type === "news") return <Button asChild variant={variant} size="sm"><Link to="/news">{label}</Link></Button>;
+  if (link.type === "chat") return <Button asChild variant={variant} size="sm"><Link to="/chat">{label}</Link></Button>;
+  if (link.type === "chatPrefill") return <Button asChild variant={variant} size="sm"><Link to="/chat" search={{ prompt: link.prompt } as never}>{label}</Link></Button>;
+  if (link.type === "dashboard") return <Button asChild variant={variant} size="sm"><Link to="/dashboard">{label}</Link></Button>;
+  if (link.type === "topicsIndex") return <Button asChild variant={variant} size="sm"><Link to="/topics">{label}</Link></Button>;
+  return <Button asChild variant={variant} size="sm"><Link to="/tools">{label}</Link></Button>;
 }
