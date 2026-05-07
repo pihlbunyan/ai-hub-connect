@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useApp } from "@/contexts/AppContext";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -26,6 +26,15 @@ function ChatPage() {
   const [prompt, setPrompt] = useState("");
   const [running, setRunning] = useState(false);
   const [results, setResults] = useState<Result[]>([]);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const sp = new URLSearchParams(window.location.search);
+    const prefill = sp.get("prompt");
+    if (prefill) {
+      setPrompt(prefill);
+    }
+  }, []);
 
   async function run() {
     if (!prompt.trim()) return;
@@ -71,13 +80,13 @@ function ChatPage() {
 
       <div className="grid gap-6 lg:grid-cols-[1fr_300px]">
         <div className="rounded-2xl border bg-card p-6 shadow-card">
-          <Label htmlFor="prompt" className={cn(mode === "lay" && "text-base")}>{t.chatPromptLabel}</Label>
+          <Label htmlFor="prompt" className={cn(mode === "discover" && "text-base")}>{t.chatPromptLabel}</Label>
           <Textarea
             id="prompt"
             value={prompt}
             onChange={(e) => setPrompt(e.target.value)}
             placeholder={t.chatPromptPlaceholder}
-            className={cn("mt-2 min-h-32", mode === "lay" && "min-h-40 text-base")}
+            className={cn("mt-2 min-h-32", mode === "discover" && "min-h-40 text-base")}
           />
           <div className="mt-4 flex items-center justify-between gap-3">
             <div className="text-xs text-muted-foreground">
@@ -86,7 +95,7 @@ function ChatPage() {
             <Button
               onClick={run}
               disabled={running || !prompt.trim()}
-              size={mode === "lay" ? "lg" : "default"}
+              size={mode === "discover" ? "lg" : "default"}
               className="gap-2"
             >
               {running ? <Loader2 className="h-4 w-4 animate-spin" /> : <Zap className="h-4 w-4" />}
@@ -96,16 +105,16 @@ function ChatPage() {
         </div>
 
         <div className="rounded-2xl border bg-card p-6 shadow-card">
-          <Label className={cn(mode === "lay" && "text-base")}>{t.chatModelsLabel}</Label>
+          <Label className={cn(mode === "discover" && "text-base")}>{t.chatModelsLabel}</Label>
           <div className="mt-3">
             <Button
               type="button"
               variant="default"
-              size={mode === "lay" ? "lg" : "default"}
+              size={mode === "discover" ? "lg" : "default"}
               className="h-auto w-full justify-start rounded-xl px-4 py-3 text-left shadow-sm"
             >
               <div className="flex flex-col items-start">
-                <span className={cn("font-semibold", mode === "lay" && "text-base")}>Grok 4 (Recommended)</span>
+                <span className={cn("font-semibold", mode === "discover" && "text-base")}>Grok 4 (Recommended)</span>
                 <span className="text-xs font-normal text-primary-foreground/85">Fast, strong reasoning, best default</span>
               </div>
             </Button>

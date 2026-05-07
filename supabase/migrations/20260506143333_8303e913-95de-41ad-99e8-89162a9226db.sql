@@ -1,16 +1,16 @@
 
 -- Enums
 CREATE TYPE public.app_role AS ENUM ('admin','moderator','user');
-CREATE TYPE public.user_mode AS ENUM ('pro','lay');
+CREATE TYPE public.user_mode AS ENUM ('pro','discover');
 CREATE TYPE public.cost_tier AS ENUM ('free','freemium','paid','enterprise');
-CREATE TYPE public.tool_audience AS ENUM ('pro','lay','both');
+CREATE TYPE public.tool_audience AS ENUM ('pro','discover','both');
 
 -- Profiles
 CREATE TABLE public.profiles (
   id UUID PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
   email TEXT,
   display_name TEXT,
-  mode public.user_mode NOT NULL DEFAULT 'lay',
+  mode public.user_mode NOT NULL DEFAULT 'discover',
   preferences JSONB NOT NULL DEFAULT '{}'::jsonb,
   created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
   updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
@@ -66,12 +66,12 @@ CREATE TABLE public.tools (
   category TEXT NOT NULL,
   description_short TEXT NOT NULL,
   description_long TEXT,
-  lay_summary TEXT,
+  discover_summary TEXT,
   pro_summary TEXT,
   url TEXT,
   logo_url TEXT,
   pro_tags TEXT[] NOT NULL DEFAULT '{}',
-  lay_tags TEXT[] NOT NULL DEFAULT '{}',
+  discover_tags TEXT[] NOT NULL DEFAULT '{}',
   rating NUMERIC(2,1) NOT NULL DEFAULT 4.5,
   cost_tier public.cost_tier NOT NULL DEFAULT 'freemium',
   audience public.tool_audience NOT NULL DEFAULT 'both',
@@ -124,7 +124,7 @@ CREATE POLICY "chats_insert_own" ON public.chats FOR INSERT WITH CHECK (auth.uid
 CREATE POLICY "chats_delete_own" ON public.chats FOR DELETE USING (auth.uid() = user_id);
 
 -- Seed tools
-INSERT INTO public.tools (name, slug, vendor, category, description_short, lay_summary, pro_summary, url, pro_tags, lay_tags, rating, cost_tier, audience) VALUES
+INSERT INTO public.tools (name, slug, vendor, category, description_short, discover_summary, pro_summary, url, pro_tags, discover_tags, rating, cost_tier, audience) VALUES
 ('Claude','claude','Anthropic','Chat & Reasoning','Anthropic''s flagship reasoning model with long-context analysis.','A super smart writing and thinking buddy that''s great at long, careful answers.','Frontier LLM with 200k context, strong tool use, excellent for code review, legal/technical drafting, RAG.','https://claude.ai',ARRAY['200k-context','tool-use','XML-prompts','vision'],ARRAY['friendly','careful'],4.8,'freemium','pro'),
 ('ChatGPT','chatgpt','OpenAI','Chat & Reasoning','The most popular general-purpose AI assistant.','Ask anything — writing, ideas, homework help, recipes.','GPT-5 family, code interpreter, custom GPTs, plugins, multimodal I/O.','https://chat.openai.com',ARRAY['code-interpreter','custom-gpts','assistants-api'],ARRAY['easy','popular'],4.7,'freemium','both'),
 ('Grok 4','grok','xAI','Chat & Reasoning','xAI''s real-time, X-integrated assistant.','Knows what''s happening on social media right now.','Live web/X access, function calling, competitive reasoning benchmarks.','https://grok.x.ai',ARRAY['real-time','function-calling','x-integration'],ARRAY['live','witty'],4.4,'paid','both'),
@@ -141,7 +141,7 @@ INSERT INTO public.tools (name, slug, vendor, category, description_short, lay_s
 ('Lindy','lindy','Lindy','Productivity & Automation','Build no-code AI employees and workflows.','Hire a digital assistant in minutes.','Agent builder, Gmail/Calendar/CRM tools, phone agents, multi-agent.','https://lindy.ai',ARRAY['agent-builder','phone','crm'],ARRAY['assistants'],4.5,'paid','pro'),
 ('n8n','n8n','n8n','Productivity & Automation','Open-source workflow automation with AI nodes.','Drag-and-drop way to wire up automations.','Self-hostable, LangChain nodes, code nodes, 400+ integrations.','https://n8n.io',ARRAY['self-host','langchain','open-source'],ARRAY['workflows'],4.7,'freemium','pro'),
 ('The Rundown AI','the-rundown-ai',null,'Research & Knowledge','Daily AI news + tutorials newsletter.','A short daily email that tells you what''s new in AI.','Curated industry signal, deep-dives, tool comparisons, courses.','https://therundown.ai',ARRAY['newsletter','industry'],ARRAY['daily','easy'],4.5,'free','both'),
-('TLDR AI','tldr-ai',null,'Research & Knowledge','5-minute AI news digest.','The shortest way to keep up with AI.','Concise summaries of papers, launches, and tooling.','https://tldr.tech/ai',ARRAY['summaries'],ARRAY['quick','simple'],4.4,'free','lay'),
+('TLDR AI','tldr-ai',null,'Research & Knowledge','5-minute AI news digest.','The shortest way to keep up with AI.','Concise summaries of papers, launches, and tooling.','https://tldr.tech/ai',ARRAY['summaries'],ARRAY['quick','simple'],4.4,'free','discover'),
 ('MIT Technology Review AI','mit-tech-review-ai','MIT','Research & Knowledge','In-depth AI journalism and analysis.','Big magazine-style stories about how AI is changing the world.','Long-form reporting, policy, research breakdowns, interviews.','https://technologyreview.com/topic/artificial-intelligence',ARRAY['long-form','policy','research'],ARRAY['serious'],4.6,'paid','pro'),
 ('OpenRouter','openrouter','OpenRouter','Specialized','Unified API for hundreds of LLMs.','One key, every AI model.','Provider routing, fallbacks, cost analytics, OpenAI-compatible API.','https://openrouter.ai',ARRAY['unified-api','routing','byok'],ARRAY['developer'],4.7,'freemium','pro'),
 ('Synthesia','synthesia','Synthesia','Specialized','AI avatar video generator for training and marketing.','Make videos with realistic AI presenters.','230+ avatars, 140+ languages, custom avatars, brand kits.','https://synthesia.io',ARRAY['avatars','enterprise','localization'],ARRAY['videos','presenters'],4.6,'paid','both');

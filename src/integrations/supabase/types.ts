@@ -70,6 +70,39 @@ export type Database = {
           },
         ]
       }
+      news_posts: {
+        Row: {
+          content: string
+          created_at: string
+          id: string
+          published_at: string
+          source: string
+          summary: string
+          title: string
+          url: string
+        }
+        Insert: {
+          content: string
+          created_at?: string
+          id?: string
+          published_at: string
+          source: string
+          summary: string
+          title: string
+          url: string
+        }
+        Update: {
+          content?: string
+          created_at?: string
+          id?: string
+          published_at?: string
+          source?: string
+          summary?: string
+          title?: string
+          url?: string
+        }
+        Relationships: []
+      }
       profiles: {
         Row: {
           created_at: string
@@ -144,8 +177,8 @@ export type Database = {
           description_long: string | null
           description_short: string
           id: string
-          lay_summary: string | null
-          lay_tags: string[]
+          discover_summary: string | null
+          discover_tags: string[]
           logo_url: string | null
           name: string
           pro_summary: string | null
@@ -163,8 +196,8 @@ export type Database = {
           description_long?: string | null
           description_short: string
           id?: string
-          lay_summary?: string | null
-          lay_tags?: string[]
+          discover_summary?: string | null
+          discover_tags?: string[]
           logo_url?: string | null
           name: string
           pro_summary?: string | null
@@ -182,8 +215,8 @@ export type Database = {
           description_long?: string | null
           description_short?: string
           id?: string
-          lay_summary?: string | null
-          lay_tags?: string[]
+          discover_summary?: string | null
+          discover_tags?: string[]
           logo_url?: string | null
           name?: string
           pro_summary?: string | null
@@ -229,8 +262,8 @@ export type Database = {
     Enums: {
       app_role: "admin" | "moderator" | "user"
       cost_tier: "free" | "freemium" | "paid" | "enterprise"
-      tool_audience: "pro" | "lay" | "both"
-      user_mode: "pro" | "lay"
+      tool_audience: "pro" | "discover" | "both"
+      user_mode: "pro" | "discover"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -360,8 +393,8 @@ export const Constants = {
     Enums: {
       app_role: ["admin", "moderator", "user"],
       cost_tier: ["free", "freemium", "paid", "enterprise"],
-      tool_audience: ["pro", "lay", "both"],
-      user_mode: ["pro", "lay"],
+      tool_audience: ["pro", "discover", "both"],
+      user_mode: ["pro", "discover"],
     },
   },
 } as const

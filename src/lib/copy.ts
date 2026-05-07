@@ -1,7 +1,5 @@
-// Centralized text that switches with Pro/Lay mode.
-import type { Database } from "@/integrations/supabase/types";
-
-export type Mode = Database["public"]["Enums"]["user_mode"];
+// Centralized text that switches with Pro/Discover mode.
+export type Mode = "pro" | "discover";
 
 type Copy = {
   tagline: string;
@@ -11,6 +9,8 @@ type Copy = {
   ctaSecondary: string;
   navDirectory: string;
   navChat: string;
+  navNews: string;
+  navTopics: string;
   navDashboard: string;
   navAdmin: string;
   toggleHint: string;
@@ -36,35 +36,37 @@ type Copy = {
 };
 
 export const copy: Record<Mode, Copy> = {
-  lay: {
-    tagline: "Your friendly AI hub",
-    heroTitle: "All the AI tools, explained simply.",
+  discover: {
+    tagline: "AI tools, clearly organized",
+    heroTitle: "All the AI tools, clearly explained.",
     heroSubtitle:
-      "Discover, compare, and chat with the best AI tools — without the jargon. Switch to Pro mode anytime.",
-    ctaPrimary: "Show me the tools",
-    ctaSecondary: "Try the AI chat",
+      "Discover, compare, and use leading AI tools with clear guidance and practical context.",
+    ctaPrimary: "Browse tools",
+    ctaSecondary: "Open chat",
     navDirectory: "AI Tools",
     navChat: "Ask AI",
-    navDashboard: "My stuff",
+    navNews: "News",
+    navTopics: "AI Topics",
+    navDashboard: "My tools",
     navAdmin: "Admin",
-    toggleHint: "Switch to expert mode",
-    directoryTitle: "Pick an AI tool",
-    directorySubtitle: "Big buttons, plain English. Tap a card to learn what each one does.",
+    toggleHint: "Switch to Pro mode",
+    directoryTitle: "Find the right AI tool",
+    directorySubtitle: "Practical summaries and clear categories to help you choose with confidence.",
     searchPlaceholder: "Search by name…",
-    filterCategory: "What it does",
+    filterCategory: "Use case",
     filterCost: "Price",
     filterAudience: "Who it's for",
-    chatTitle: "Ask the AI",
-    chatSubtitle: "Type a question. We'll ask several smart AIs and show you their answers side by side.",
+    chatTitle: "Chat with AI",
+    chatSubtitle: "Ask a question and get a focused answer quickly.",
     chatPromptLabel: "Your question",
     chatPromptPlaceholder: "Explain quantum computing like I'm 5…",
-    chatModelsLabel: "AI helpers to ask",
-    chatRun: "Ask the AIs",
-    chatRunning: "Thinking…",
-    chatTokensLabel: "Words used",
+    chatModelsLabel: "Model",
+    chatRun: "Send",
+    chatRunning: "Working…",
+    chatTokensLabel: "Tokens used",
     chatCostLabel: "Approx. cost",
-    dashboardTitle: "Your space",
-    dashboardEmpty: "No favorites yet. Star a tool you like and it'll show up here.",
+    dashboardTitle: "Your dashboard",
+    dashboardEmpty: "No favorites yet. Save tools to build your shortlist.",
     authTitle: "Welcome to Pihlai",
     authSubtitle: "Make an account to save favorites and chat history.",
   },
@@ -77,9 +79,11 @@ export const copy: Record<Mode, Copy> = {
     ctaSecondary: "Launch aggregator",
     navDirectory: "Directory",
     navChat: "Aggregator",
+    navNews: "News",
+    navTopics: "AI Topics",
     navDashboard: "Dashboard",
     navAdmin: "Admin",
-    toggleHint: "Switch to layperson view",
+    toggleHint: "Switch to Discover view",
     directoryTitle: "Tool directory",
     directorySubtitle: "Filterable index of frontier tools across categories, with audience and cost-tier metadata.",
     searchPlaceholder: "Query tools, vendors, capabilities…",

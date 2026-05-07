@@ -1,5 +1,5 @@
 import { Link, useNavigate } from "@tanstack/react-router";
-import { Star, ExternalLink } from "lucide-react";
+import { Heart } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { Database } from "@/integrations/supabase/types";
 import { useApp } from "@/contexts/AppContext";
@@ -9,8 +9,8 @@ export type Tool = Database["public"]["Tables"]["tools"]["Row"];
 export function ToolCard({ tool, favorite, onToggleFavorite }: { tool: Tool; favorite?: boolean; onToggleFavorite?: () => void }) {
   const { mode } = useApp();
   const navigate = useNavigate();
-  const summary = mode === "pro" ? tool.pro_summary || tool.description_short : tool.lay_summary || tool.description_short;
-  const tags = (mode === "pro" ? tool.pro_tags : tool.lay_tags) || [];
+  const summary = mode === "pro" ? tool.pro_summary || tool.description_short : tool.discover_summary || tool.description_short;
+  const tags = (mode === "pro" ? tool.pro_tags : tool.discover_tags) || [];
   return (
     <article
       className="group relative flex cursor-pointer flex-col rounded-2xl border bg-card p-5 shadow-card transition-all hover:-translate-y-0.5 hover:shadow-glow"
@@ -46,12 +46,12 @@ export function ToolCard({ tool, favorite, onToggleFavorite }: { tool: Tool; fav
               favorite ? "text-accent" : "text-muted-foreground hover:text-foreground",
             )}
           >
-            <Star className={cn("h-4 w-4", favorite && "fill-current")} />
+            <Heart className={cn("h-4 w-4", favorite && "fill-current")} />
           </button>
         )}
       </div>
 
-      <p className={cn("mt-4 text-sm text-muted-foreground", mode === "lay" && "text-base")}>{summary}</p>
+      <p className={cn("mt-4 text-sm text-muted-foreground", mode === "discover" && "text-base")}>{summary}</p>
 
       <div className="mt-4 flex flex-wrap gap-1.5">
         {tags.slice(0, mode === "pro" ? 5 : 3).map((tg) => (
@@ -85,5 +85,9 @@ function AudienceBadge({ audience }: { audience: Tool["audience"] }) {
   if (audience === "both") return <span className="rounded-full bg-muted px-1.5 py-0.5">All</span>;
   if (audience === "pro")
     return <span className="rounded-full bg-pro/15 px-1.5 py-0.5 text-pro">{mode === "pro" ? "Pro" : "Expert"}</span>;
-  return <span className="rounded-full bg-lay/25 px-1.5 py-0.5 text-lay-foreground">{mode === "pro" ? "Lay" : "Easy"}</span>;
+  return (
+    <span className="rounded-full bg-discover/25 px-1.5 py-0.5 text-discover-foreground">
+      {mode === "pro" ? "Discover" : "Easy"}
+    </span>
+  );
 }

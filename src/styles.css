@@ -37,8 +37,8 @@
 
   --color-pro: var(--pro);
   --color-pro-foreground: var(--pro-foreground);
-  --color-lay: var(--lay);
-  --color-lay-foreground: var(--lay-foreground);
+  --color-discover: var(--discover);
+  --color-discover-foreground: var(--discover-foreground);
 
   --shadow-glow: 0 20px 60px -20px color-mix(in oklab, var(--primary) 45%, transparent);
   --shadow-card: 0 1px 0 0 color-mix(in oklab, var(--foreground) 6%, transparent),
@@ -84,8 +84,8 @@
   /* Mode tokens */
   --pro: oklch(0.45 0.18 275);          /* deep indigo  */
   --pro-foreground: oklch(0.99 0 0);
-  --lay: oklch(0.82 0.18 70);           /* warm amber */
-  --lay-foreground: oklch(0.22 0.06 50);
+  --discover: oklch(0.82 0.18 70);           /* warm amber */
+  --discover-foreground: oklch(0.22 0.06 50);
 }
 
 .dark {
@@ -118,8 +118,8 @@
 
   --pro: oklch(0.72 0.2 275);
   --pro-foreground: oklch(0.14 0.02 270);
-  --lay: oklch(0.85 0.18 75);
-  --lay-foreground: oklch(0.22 0.06 50);
+  --discover: oklch(0.85 0.18 75);
+  --discover-foreground: oklch(0.22 0.06 50);
 }
 
 @layer base {

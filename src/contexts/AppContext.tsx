@@ -24,7 +24,7 @@ const MODE_KEY = "pihlai.mode";
 const THEME_KEY = "pihlai.theme";
 
 export function AppProvider({ children }: { children: React.ReactNode }) {
-  const [mode, setModeState] = React.useState<Mode>("lay");
+  const [mode, setModeState] = React.useState<Mode>("discover");
   const [theme, setTheme] = React.useState<Theme>("light");
   const [session, setSession] = React.useState<Session | null>(null);
   const [user, setUser] = React.useState<User | null>(null);
@@ -34,7 +34,9 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   React.useEffect(() => {
     const m = (typeof window !== "undefined" && localStorage.getItem(MODE_KEY)) as Mode | null;
     const th = (typeof window !== "undefined" && localStorage.getItem(THEME_KEY)) as Theme | null;
-    if (m === "pro" || m === "lay") setModeState(m);
+    if (m === "pro" || m === "discover") {
+      setModeState(m);
+    }
     if (th === "dark" || th === "light") setTheme(th);
   }, []);
 
@@ -61,7 +63,10 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   React.useEffect(() => {
     if (!user) return;
     supabase.from("profiles").select("mode").eq("id", user.id).maybeSingle().then(({ data }) => {
-      if (data?.mode === "pro" || data?.mode === "lay") setModeState(data.mode);
+      const profileMode = data?.mode as string | undefined;
+      if (profileMode === "pro" || profileMode === "discover") {
+        setModeState(profileMode);
+      }
     });
   }, [user]);
 
@@ -78,7 +83,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     () => ({
       mode,
       setMode,
-      toggleMode: () => setMode(mode === "pro" ? "lay" : "pro"),
+      toggleMode: () => setMode(mode === "pro" ? "discover" : "pro"),
       t: copy[mode],
       theme,
       toggleTheme: () => setTheme(theme === "dark" ? "light" : "dark"),

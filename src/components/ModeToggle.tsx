@@ -1,6 +1,6 @@
 import { useApp } from "@/contexts/AppContext";
 import { cn } from "@/lib/utils";
-import { Briefcase, Smile } from "lucide-react";
+import { Briefcase, Compass } from "lucide-react";
 
 export function ModeToggle({ className }: { className?: string }) {
   const { mode, setMode, t } = useApp();
@@ -15,15 +15,17 @@ export function ModeToggle({ className }: { className?: string }) {
     >
       <button
         role="tab"
-        aria-selected={mode === "lay"}
-        onClick={() => setMode("lay")}
+        aria-selected={mode === "discover"}
+        onClick={() => setMode("discover")}
         className={cn(
           "relative z-10 flex items-center gap-1.5 rounded-full px-3 py-1.5 transition-colors",
-          mode === "lay" ? "bg-lay text-lay-foreground shadow" : "text-muted-foreground hover:text-foreground",
+          mode === "discover"
+            ? "bg-discover text-discover-foreground shadow"
+            : "text-muted-foreground hover:text-foreground",
         )}
       >
-        <Smile className="h-3.5 w-3.5" />
-        Lay
+        <Compass className="h-3.5 w-3.5" />
+        Discover
       </button>
       <button
         role="tab"

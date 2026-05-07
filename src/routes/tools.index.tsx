@@ -1,4 +1,4 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useApp } from "@/contexts/AppContext";
@@ -18,6 +18,7 @@ export const Route = createFileRoute("/tools/")({ component: ToolsIndex });
 
 function ToolsIndex() {
   const { t, mode, user } = useApp();
+  const navigate = useNavigate();
   const [tools, setTools] = useState<Tool[]>([]);
   const [favs, setFavs] = useState<Set<string>>(new Set());
   const [q, setQ] = useState("");
@@ -46,7 +47,19 @@ function ToolsIndex() {
   const categories = useMemo(() => Array.from(new Set(tools.map((t) => t.category))), [tools]);
   const filtered = useMemo(() => {
     return tools.filter((tl) => {
-      if (q && !`${tl.name} ${tl.vendor ?? ""}`.toLowerCase().includes(q.toLowerCase())) return false;
+      const searchCorpus = [
+        tl.name,
+        tl.vendor ?? "",
+        tl.category,
+        tl.description_short,
+        tl.pro_summary ?? "",
+        tl.discover_summary ?? "",
+        ...(tl.pro_tags ?? []),
+        ...(tl.discover_tags ?? []),
+      ]
+        .join(" ")
+        .toLowerCase();
+      if (q && !searchCorpus.includes(q.toLowerCase())) return false;
       if (cat !== "all" && tl.category !== cat) return false;
       if (cost !== "all" && tl.cost_tier !== cost) return false;
       if (aud !== "all" && tl.audience !== aud && tl.audience !== "both") return false;
@@ -57,6 +70,10 @@ function ToolsIndex() {
   async function toggleFav(toolId: string) {
     if (!user) {
       toast.error("Sign in to save favorites");
+      navigate({
+        to: "/auth",
+        search: { redirect: `${window.location.pathname}${window.location.search}` } as never,
+      });
       return;
     }
     const isFav = favs.has(toolId);
@@ -110,7 +127,7 @@ function ToolsIndex() {
           <SelectContent>
             <SelectItem value="all">{t.filterAudience}: all</SelectItem>
             <SelectItem value="pro">{mode === "pro" ? "Pro" : "Expert"}</SelectItem>
-            <SelectItem value="lay">{mode === "pro" ? "Lay" : "Beginner"}</SelectItem>
+            <SelectItem value="discover">Discover</SelectItem>
             <SelectItem value="both">Both</SelectItem>
           </SelectContent>
         </Select>

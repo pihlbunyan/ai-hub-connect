@@ -9,15 +9,29 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
+import { Route as TopicsRouteImport } from './routes/topics'
+import { Route as NewsRouteImport } from './routes/news'
 import { Route as DashboardRouteImport } from './routes/dashboard'
 import { Route as ChatRouteImport } from './routes/chat'
 import { Route as AuthRouteImport } from './routes/auth'
 import { Route as AdminRouteImport } from './routes/admin'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as ToolsIndexRouteImport } from './routes/tools.index'
+import { Route as TopicsSlugRouteImport } from './routes/topics.$slug'
 import { Route as ToolsSlugRouteImport } from './routes/tools.$slug'
+import { Route as ApiPublicSiteHostRouteImport } from './routes/api.public.site-host'
 import { Route as ApiPublicChatAggregateRouteImport } from './routes/api.public.chat-aggregate'
 
+const TopicsRoute = TopicsRouteImport.update({
+  id: '/topics',
+  path: '/topics',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const NewsRoute = NewsRouteImport.update({
+  id: '/news',
+  path: '/news',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const DashboardRoute = DashboardRouteImport.update({
   id: '/dashboard',
   path: '/dashboard',
@@ -48,9 +62,19 @@ const ToolsIndexRoute = ToolsIndexRouteImport.update({
   path: '/tools/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const TopicsSlugRoute = TopicsSlugRouteImport.update({
+  id: '/$slug',
+  path: '/$slug',
+  getParentRoute: () => TopicsRoute,
+} as any)
 const ToolsSlugRoute = ToolsSlugRouteImport.update({
   id: '/tools/$slug',
   path: '/tools/$slug',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiPublicSiteHostRoute = ApiPublicSiteHostRouteImport.update({
+  id: '/api/public/site-host',
+  path: '/api/public/site-host',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ApiPublicChatAggregateRoute = ApiPublicChatAggregateRouteImport.update({
@@ -65,9 +89,13 @@ export interface FileRoutesByFullPath {
   '/auth': typeof AuthRoute
   '/chat': typeof ChatRoute
   '/dashboard': typeof DashboardRoute
+  '/news': typeof NewsRoute
+  '/topics': typeof TopicsRouteWithChildren
   '/tools/$slug': typeof ToolsSlugRoute
+  '/topics/$slug': typeof TopicsSlugRoute
   '/tools/': typeof ToolsIndexRoute
   '/api/public/chat-aggregate': typeof ApiPublicChatAggregateRoute
+  '/api/public/site-host': typeof ApiPublicSiteHostRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -75,9 +103,13 @@ export interface FileRoutesByTo {
   '/auth': typeof AuthRoute
   '/chat': typeof ChatRoute
   '/dashboard': typeof DashboardRoute
+  '/news': typeof NewsRoute
+  '/topics': typeof TopicsRouteWithChildren
   '/tools/$slug': typeof ToolsSlugRoute
+  '/topics/$slug': typeof TopicsSlugRoute
   '/tools': typeof ToolsIndexRoute
   '/api/public/chat-aggregate': typeof ApiPublicChatAggregateRoute
+  '/api/public/site-host': typeof ApiPublicSiteHostRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -86,9 +118,13 @@ export interface FileRoutesById {
   '/auth': typeof AuthRoute
   '/chat': typeof ChatRoute
   '/dashboard': typeof DashboardRoute
+  '/news': typeof NewsRoute
+  '/topics': typeof TopicsRouteWithChildren
   '/tools/$slug': typeof ToolsSlugRoute
+  '/topics/$slug': typeof TopicsSlugRoute
   '/tools/': typeof ToolsIndexRoute
   '/api/public/chat-aggregate': typeof ApiPublicChatAggregateRoute
+  '/api/public/site-host': typeof ApiPublicSiteHostRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -98,9 +134,13 @@ export interface FileRouteTypes {
     | '/auth'
     | '/chat'
     | '/dashboard'
+    | '/news'
+    | '/topics'
     | '/tools/$slug'
+    | '/topics/$slug'
     | '/tools/'
     | '/api/public/chat-aggregate'
+    | '/api/public/site-host'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -108,9 +148,13 @@ export interface FileRouteTypes {
     | '/auth'
     | '/chat'
     | '/dashboard'
+    | '/news'
+    | '/topics'
     | '/tools/$slug'
+    | '/topics/$slug'
     | '/tools'
     | '/api/public/chat-aggregate'
+    | '/api/public/site-host'
   id:
     | '__root__'
     | '/'
@@ -118,9 +162,13 @@ export interface FileRouteTypes {
     | '/auth'
     | '/chat'
     | '/dashboard'
+    | '/news'
+    | '/topics'
     | '/tools/$slug'
+    | '/topics/$slug'
     | '/tools/'
     | '/api/public/chat-aggregate'
+    | '/api/public/site-host'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -129,13 +177,30 @@ export interface RootRouteChildren {
   AuthRoute: typeof AuthRoute
   ChatRoute: typeof ChatRoute
   DashboardRoute: typeof DashboardRoute
+  NewsRoute: typeof NewsRoute
+  TopicsRoute: typeof TopicsRouteWithChildren
   ToolsSlugRoute: typeof ToolsSlugRoute
   ToolsIndexRoute: typeof ToolsIndexRoute
   ApiPublicChatAggregateRoute: typeof ApiPublicChatAggregateRoute
+  ApiPublicSiteHostRoute: typeof ApiPublicSiteHostRoute
 }
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
+    '/topics': {
+      id: '/topics'
+      path: '/topics'
+      fullPath: '/topics'
+      preLoaderRoute: typeof TopicsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/news': {
+      id: '/news'
+      path: '/news'
+      fullPath: '/news'
+      preLoaderRoute: typeof NewsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/dashboard': {
       id: '/dashboard'
       path: '/dashboard'
@@ -178,11 +243,25 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ToolsIndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/topics/$slug': {
+      id: '/topics/$slug'
+      path: '/$slug'
+      fullPath: '/topics/$slug'
+      preLoaderRoute: typeof TopicsSlugRouteImport
+      parentRoute: typeof TopicsRoute
+    }
     '/tools/$slug': {
       id: '/tools/$slug'
       path: '/tools/$slug'
       fullPath: '/tools/$slug'
       preLoaderRoute: typeof ToolsSlugRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/public/site-host': {
+      id: '/api/public/site-host'
+      path: '/api/public/site-host'
+      fullPath: '/api/public/site-host'
+      preLoaderRoute: typeof ApiPublicSiteHostRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/api/public/chat-aggregate': {
@@ -195,15 +274,29 @@ declare module '@tanstack/react-router' {
   }
 }
 
+interface TopicsRouteChildren {
+  TopicsSlugRoute: typeof TopicsSlugRoute
+}
+
+const TopicsRouteChildren: TopicsRouteChildren = {
+  TopicsSlugRoute: TopicsSlugRoute,
+}
+
+const TopicsRouteWithChildren =
+  TopicsRoute._addFileChildren(TopicsRouteChildren)
+
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AdminRoute: AdminRoute,
   AuthRoute: AuthRoute,
   ChatRoute: ChatRoute,
   DashboardRoute: DashboardRoute,
+  NewsRoute: NewsRoute,
+  TopicsRoute: TopicsRouteWithChildren,
   ToolsSlugRoute: ToolsSlugRoute,
   ToolsIndexRoute: ToolsIndexRoute,
   ApiPublicChatAggregateRoute: ApiPublicChatAggregateRoute,
+  ApiPublicSiteHostRoute: ApiPublicSiteHostRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

@@ -30,7 +30,7 @@ export const Route = createRootRoute({
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1" },
       { title: "Pihlai — One-stop AI hub" },
-      { name: "description", content: "Discover AI tools, chat with multiple models in parallel, and switch between Pro and Layperson modes." },
+      { name: "description", content: "Discover AI tools, chat with multiple models in parallel, and switch between Pro and Discover modes." },
       { name: "author", content: "Pihlai" },
       { property: "og:title", content: "Pihlai — One-stop AI hub" },
       { property: "og:description", content: "AI tool directory and multi-model chat aggregator." },
@@ -67,6 +67,7 @@ function RootShell({ children }: { children: React.ReactNode }) {
 import { AppProvider } from "@/contexts/AppContext";
 import { NavBar } from "@/components/NavBar";
 import { Toaster } from "@/components/ui/sonner";
+import { SiteHostWidget } from "@/components/SiteHostWidget";
 
 function RootComponent() {
   return (
@@ -77,9 +78,10 @@ function RootComponent() {
           <Outlet />
         </main>
         <footer className="border-t border-border/60 py-6 text-center text-xs text-muted-foreground">
-          Pihlai · Built with Lovable
+          Pihlai · Built for serious AI work
         </footer>
       </div>
+      <SiteHostWidget />
       <Toaster richColors position="top-right" />
     </AppProvider>
   );

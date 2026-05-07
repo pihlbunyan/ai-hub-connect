@@ -18,17 +18,23 @@ function AuthPage() {
   const [password, setPassword] = useState("");
   const [name, setName] = useState("");
   const [busy, setBusy] = useState(false);
+  const [authError, setAuthError] = useState<string | null>(null);
+  const redirectTo =
+    typeof window !== "undefined"
+      ? decodeURIComponent(new URLSearchParams(window.location.search).get("redirect") || "/dashboard")
+      : "/dashboard";
 
   useEffect(() => {
-    if (user) nav({ to: "/dashboard" });
-  }, [user, nav]);
+    if (user) nav({ to: redirectTo as "/dashboard" });
+  }, [user, nav, redirectTo]);
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
+    setAuthError(null);
     setBusy(true);
     try {
       if (tab === "signup") {
-        const { error } = await supabase.auth.signUp({
+        const { data, error } = await supabase.auth.signUp({
           email,
           password,
           options: {
@@ -37,15 +43,22 @@ function AuthPage() {
           },
         });
         if (error) throw error;
-        toast.success("Account created. Check your email to confirm.");
+        if (data.session) {
+          toast.success("Account created. You are now signed in.");
+          nav({ to: redirectTo as "/dashboard" });
+        } else {
+          toast.success("Account created. Check your email to confirm before signing in.");
+        }
       } else {
         const { error } = await supabase.auth.signInWithPassword({ email, password });
         if (error) throw error;
         toast.success("Welcome back!");
-        nav({ to: "/dashboard" });
+        nav({ to: redirectTo as "/dashboard" });
       }
     } catch (err: unknown) {
-      toast.error(err instanceof Error ? err.message : "Authentication failed");
+      const message = getAuthErrorMessage(err);
+      setAuthError(message);
+      toast.error(message);
     } finally {
       setBusy(false);
     }
@@ -64,13 +77,19 @@ function AuthPage() {
 
         <div className="mt-6 inline-flex rounded-md border p-0.5 text-sm">
           <button
-            onClick={() => setTab("signin")}
+            onClick={() => {
+              setTab("signin");
+              setAuthError(null);
+            }}
             className={`rounded px-3 py-1 ${tab === "signin" ? "bg-primary text-primary-foreground" : "text-muted-foreground"}`}
           >
             Sign in
           </button>
           <button
-            onClick={() => setTab("signup")}
+            onClick={() => {
+              setTab("signup");
+              setAuthError(null);
+            }}
             className={`rounded px-3 py-1 ${tab === "signup" ? "bg-primary text-primary-foreground" : "text-muted-foreground"}`}
           >
             Sign up
@@ -86,15 +105,54 @@ function AuthPage() {
           )}
           <div className="space-y-1.5">
             <Label htmlFor="email">Email</Label>
-            <Input id="email" type="email" required value={email} onChange={(e) => setEmail(e.target.value)} />
+            <Input
+              id="email"
+              type="email"
+              required
+              value={email}
+              onChange={(e) => {
+                setEmail(e.target.value);
+                if (authError) setAuthError(null);
+              }}
+            />
           </div>
           <div className="space-y-1.5">
             <Label htmlFor="password">Password</Label>
-            <Input id="password" type="password" required minLength={6} value={password} onChange={(e) => setPassword(e.target.value)} />
+            <Input
+              id="password"
+              type="password"
+              required
+              minLength={6}
+              value={password}
+              onChange={(e) => {
+                setPassword(e.target.value);
+                if (authError) setAuthError(null);
+              }}
+            />
           </div>
+          {authError && (
+            <div className="rounded-md border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm text-destructive">
+              {authError}
+            </div>
+          )}
           <Button type="submit" className="w-full" disabled={busy}>
             {busy ? "Please wait…" : tab === "signin" ? "Sign in" : "Create account"}
           </Button>
+          {tab === "signin" && (
+            <p className="text-center text-sm text-muted-foreground">
+              New to Pihlai?{" "}
+              <button
+                type="button"
+                onClick={() => {
+                  setTab("signup");
+                  setAuthError(null);
+                }}
+                className="font-medium text-primary hover:underline"
+              >
+                Sign up
+              </button>
+            </p>
+          )}
         </form>
 
         <div className="my-5 flex items-center gap-3 text-xs text-muted-foreground">
@@ -108,4 +166,19 @@ function AuthPage() {
       </div>
     </div>
   );
+}
+
+function getAuthErrorMessage(err: unknown) {
+  if (!(err instanceof Error)) return "Authentication failed";
+  const msg = err.message.toLowerCase();
+  if (msg.includes("invalid login credentials")) {
+    return "Invalid email or password.";
+  }
+  if (msg.includes("email not confirmed") || msg.includes("email_not_confirmed")) {
+    return "Your email is not confirmed yet. Confirm it from your inbox, or disable email confirmation in Supabase Auth settings for dev.";
+  }
+  if (msg.includes("user already registered")) {
+    return "This email is already registered. Try signing in instead.";
+  }
+  return err.message;
 }
