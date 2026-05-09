@@ -38,7 +38,7 @@ type Copy = {
 export const copy: Record<Mode, Copy> = {
   discover: {
     tagline: "AI tools, clearly organized",
-    heroTitle: "Your Personal AI Guide. All the power of AI, made simple to work for you.",
+    heroTitle: "Discover The Power Of AI. Make It Work For You.",
     heroSubtitle:
       "Discover, compare, and use leading AI tools with clear guidance and practical context.",
     ctaPrimary: "Browse tools",
@@ -72,7 +72,7 @@ export const copy: Record<Mode, Copy> = {
   },
   pro: {
     tagline: "Pihlai // Pro AI workbench",
-    heroTitle: "Master AI without the wandering. Every tool, model, and workflow in one place.",
+    heroTitle: "Master AI. Accelerate Your Results.",
     heroSubtitle:
       "Curated AI tooling, multi-model parallel inference, and per-call cost analytics. Built for operators.",
     ctaPrimary: "Open directory",

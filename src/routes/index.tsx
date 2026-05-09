@@ -26,25 +26,29 @@ function Index() {
 
   return (
     <div>
-      <section className="bg-hero relative overflow-hidden">
-        <div className="mx-auto max-w-6xl px-6 py-20 sm:py-28">
-          <div className="mb-6 inline-flex items-center gap-2 rounded-full border bg-card/60 px-3 py-1 text-xs font-medium text-muted-foreground backdrop-blur">
+      <section className={`bg-hero relative overflow-hidden ${mode === "pro" ? "hero--pro" : "hero--discover"}`}>
+        <div className="hero-contrast-overlay pointer-events-none absolute inset-0" aria-hidden />
+        <div className="relative z-10 mx-auto max-w-6xl px-6 py-20 sm:py-28">
+          <div className="mx-auto mb-6 inline-flex items-center gap-2 rounded-full border bg-card/70 px-3 py-1 text-xs font-medium text-foreground/90 backdrop-blur">
             <Sparkles className="h-3 w-3 text-primary" />
             {mode === "pro" ? "v0.1 · operator preview" : "Discover mode"}
           </div>
-          <h1 className="font-display text-5xl font-bold leading-[1.05] tracking-tight sm:text-7xl">
-            {t.heroTitle.split(".").map((s, i, arr) =>
-              s.trim() ? (
-                <span key={i} className={i === 0 ? "text-gradient" : "text-foreground"}>
-                  {s.trim()}
-                  {i < arr.length - 1 ? ". " : ""}
+          <h1 className="text-center font-display text-5xl font-bold leading-[1.05] tracking-tight text-foreground drop-shadow-[0_1px_1px_rgba(0,0,0,0.35)] dark:drop-shadow-[0_1px_1px_rgba(0,0,0,0.75)] sm:text-7xl">
+            {t.heroTitle
+              .split(".")
+              .map((sentence) => sentence.trim())
+              .filter(Boolean)
+              .map((sentence, i) => (
+                <span key={`${sentence}-${i}`} className="block whitespace-nowrap">
+                  {sentence}.
                 </span>
-              ) : null,
-            )}
+              ))}
           </h1>
-          <p className="mt-6 max-w-2xl text-lg text-muted-foreground sm:text-xl">{t.heroSubtitle}</p>
+          <p className="mx-auto mt-6 max-w-2xl text-center text-lg text-foreground/90 drop-shadow-[0_1px_1px_rgba(0,0,0,0.3)] dark:text-foreground sm:text-xl">
+            {t.heroSubtitle}
+          </p>
           <HomePihlHost />
-          <div className="mt-8 flex flex-wrap gap-3">
+          <div className="mt-8 flex flex-wrap justify-center gap-3">
             <Button asChild size={mode === "discover" ? "lg" : "default"} className="gap-2">
               <Link to="/tools">
                 {t.ctaPrimary} <ArrowRight className="h-4 w-4" />

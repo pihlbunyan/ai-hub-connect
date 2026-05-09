@@ -44,20 +44,20 @@
   --shadow-card: 0 1px 0 0 color-mix(in oklab, var(--foreground) 6%, transparent),
                  0 8px 30px -12px color-mix(in oklab, var(--foreground) 18%, transparent);
 
-  --gradient-hero: radial-gradient(at 20% 0%, color-mix(in oklab, var(--primary) 35%, transparent) 0px, transparent 50%),
-                   radial-gradient(at 80% 30%, color-mix(in oklab, var(--accent) 40%, transparent) 0px, transparent 50%),
-                   radial-gradient(at 50% 100%, color-mix(in oklab, var(--pro) 30%, transparent) 0px, transparent 50%);
+  --gradient-hero: radial-gradient(at 20% 0%, color-mix(in oklab, var(--primary) 24%, transparent) 0px, transparent 52%),
+                   radial-gradient(at 80% 30%, color-mix(in oklab, var(--accent) 28%, transparent) 0px, transparent 52%),
+                   radial-gradient(at 50% 100%, color-mix(in oklab, var(--pro) 20%, transparent) 0px, transparent 54%);
 }
 
 :root {
   --radius: 0.875rem;
 
-  --background: oklch(0.99 0.005 95);
+  --background: oklch(0.955 0.006 95);
   --foreground: oklch(0.18 0.02 270);
 
-  --card: oklch(1 0 0);
+  --card: oklch(0.975 0.004 95);
   --card-foreground: oklch(0.18 0.02 270);
-  --popover: oklch(1 0 0);
+  --popover: oklch(0.975 0.004 95);
   --popover-foreground: oklch(0.18 0.02 270);
 
   /* Electric indigo */
@@ -89,12 +89,12 @@
 }
 
 .dark {
-  --background: oklch(0.14 0.02 270);
+  --background: oklch(0.105 0.02 270);
   --foreground: oklch(0.97 0.005 95);
 
-  --card: oklch(0.18 0.025 270);
+  --card: oklch(0.145 0.022 270);
   --card-foreground: oklch(0.97 0.005 95);
-  --popover: oklch(0.18 0.025 270);
+  --popover: oklch(0.145 0.022 270);
   --popover-foreground: oklch(0.97 0.005 95);
 
   --primary: oklch(0.72 0.2 275);
@@ -134,7 +134,37 @@
 }
 
 @layer utilities {
-  .bg-hero { background-image: var(--gradient-hero); }
+  .bg-hero {
+    background-color: color-mix(in oklab, var(--background) 86%, var(--foreground) 14%);
+    background-image: var(--gradient-hero);
+  }
+  .hero-contrast-overlay {
+    background:
+      linear-gradient(
+        to bottom,
+        color-mix(in oklab, var(--foreground) 24%, transparent) 0%,
+        color-mix(in oklab, var(--foreground) 16%, transparent) 45%,
+        color-mix(in oklab, var(--foreground) 20%, transparent) 100%
+      );
+  }
+  .hero--pro .hero-contrast-overlay {
+    background:
+      linear-gradient(
+        to bottom,
+        color-mix(in oklab, var(--pro) 10%, color-mix(in oklab, var(--foreground) 24%, transparent)) 0%,
+        color-mix(in oklab, var(--pro) 8%, color-mix(in oklab, var(--foreground) 16%, transparent)) 45%,
+        color-mix(in oklab, var(--pro) 10%, color-mix(in oklab, var(--foreground) 20%, transparent)) 100%
+      );
+  }
+  .hero--discover .hero-contrast-overlay {
+    background:
+      linear-gradient(
+        to bottom,
+        color-mix(in oklab, var(--discover) 7%, color-mix(in oklab, var(--foreground) 24%, transparent)) 0%,
+        color-mix(in oklab, var(--discover) 5%, color-mix(in oklab, var(--foreground) 16%, transparent)) 45%,
+        color-mix(in oklab, var(--discover) 7%, color-mix(in oklab, var(--foreground) 20%, transparent)) 100%
+      );
+  }
   .text-gradient {
     background: linear-gradient(120deg, var(--primary), var(--accent));
     -webkit-background-clip: text; background-clip: text; color: transparent;
