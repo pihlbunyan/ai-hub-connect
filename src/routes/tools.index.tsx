@@ -1,8 +1,9 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useApp } from "@/contexts/AppContext";
 import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
 import { ToolCard, type Tool } from "@/components/ToolCard";
 import {
   Select,
@@ -11,8 +12,11 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Search } from "lucide-react";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { Skeleton } from "@/components/ui/skeleton";
+import { AlertCircle, RefreshCw, Search } from "lucide-react";
 import { toast } from "sonner";
+import { subscribeContentRefresh } from "@/lib/contentRefresh";
 
 export const Route = createFileRoute("/tools/")({ component: ToolsIndex });
 
@@ -25,26 +29,51 @@ function ToolsIndex() {
   const [cat, setCat] = useState("all");
   const [cost, setCost] = useState("all");
   const [aud, setAud] = useState("all");
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
-    supabase
+  const loadTools = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+
+    const { data, error: fetchError } = await supabase
       .from("tools")
       .select("*")
-      .order("rating", { ascending: false })
-      .then(({ data, error }) => {
-        if (error) toast.error(error.message);
-        else setTools(data ?? []);
-      });
+      .order("rating", { ascending: false });
+
+    if (fetchError) {
+      setError(fetchError.message);
+      setTools([]);
+      toast.error(fetchError.message);
+    } else {
+      setTools(data ?? []);
+    }
+
+    setLoading(false);
   }, []);
 
   useEffect(() => {
+    void loadTools();
+  }, [loadTools]);
+
+  useEffect(() => subscribeContentRefresh("tools", () => void loadTools()), [loadTools]);
+
+  useEffect(() => {
     if (!user) return;
-    supabase.from("favorites").select("tool_id").eq("user_id", user.id).then(({ data }) => {
-      setFavs(new Set((data ?? []).map((f) => f.tool_id)));
-    });
+    supabase
+      .from("favorites")
+      .select("tool_id")
+      .eq("user_id", user.id)
+      .then(({ data, error: favError }) => {
+        if (favError) {
+          toast.error(favError.message);
+          return;
+        }
+        setFavs(new Set((data ?? []).map((f) => f.tool_id)));
+      });
   }, [user]);
 
-  const categories = useMemo(() => Array.from(new Set(tools.map((t) => t.category))), [tools]);
+  const categories = useMemo(() => Array.from(new Set(tools.map((tool) => tool.category))), [tools]);
   const filtered = useMemo(() => {
     return tools.filter((tl) => {
       const searchCorpus = [
@@ -103,16 +132,17 @@ function ToolsIndex() {
             value={q}
             onChange={(e) => setQ(e.target.value)}
             className="pl-9"
+            disabled={loading}
           />
         </div>
-        <Select value={cat} onValueChange={setCat}>
+        <Select value={cat} onValueChange={setCat} disabled={loading}>
           <SelectTrigger><SelectValue placeholder={t.filterCategory} /></SelectTrigger>
           <SelectContent>
             <SelectItem value="all">{t.filterCategory}: all</SelectItem>
             {categories.map((c) => <SelectItem key={c} value={c}>{c}</SelectItem>)}
           </SelectContent>
         </Select>
-        <Select value={cost} onValueChange={setCost}>
+        <Select value={cost} onValueChange={setCost} disabled={loading}>
           <SelectTrigger><SelectValue placeholder={t.filterCost} /></SelectTrigger>
           <SelectContent>
             <SelectItem value="all">{t.filterCost}: all</SelectItem>
@@ -122,7 +152,7 @@ function ToolsIndex() {
             <SelectItem value="enterprise">Enterprise</SelectItem>
           </SelectContent>
         </Select>
-        <Select value={aud} onValueChange={setAud}>
+        <Select value={aud} onValueChange={setAud} disabled={loading}>
           <SelectTrigger><SelectValue placeholder={t.filterAudience} /></SelectTrigger>
           <SelectContent>
             <SelectItem value="all">{t.filterAudience}: all</SelectItem>
@@ -133,13 +163,58 @@ function ToolsIndex() {
         </Select>
       </div>
 
-      <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
-        {filtered.map((tl) => (
-          <ToolCard key={tl.id} tool={tl} favorite={favs.has(tl.id)} onToggleFavorite={() => toggleFav(tl.id)} />
-        ))}
-      </div>
-      {filtered.length === 0 && (
-        <p className="py-16 text-center text-muted-foreground">No tools match those filters.</p>
+      {error && (
+        <Alert variant="destructive" className="mb-6">
+          <AlertCircle className="h-4 w-4" />
+          <AlertTitle>Could not load tools</AlertTitle>
+          <AlertDescription className="flex flex-wrap items-center justify-between gap-3">
+            <span>{error}</span>
+            <Button type="button" variant="outline" size="sm" className="gap-2" onClick={() => void loadTools()}>
+              <RefreshCw className="h-4 w-4" />
+              Retry
+            </Button>
+          </AlertDescription>
+        </Alert>
+      )}
+
+      {loading ? (
+        <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
+          {Array.from({ length: 6 }).map((_, i) => (
+            <div key={i} className="rounded-2xl border bg-card p-5 shadow-card">
+              <div className="flex items-center gap-3">
+                <Skeleton className="h-11 w-11 rounded-xl" />
+                <div className="flex-1 space-y-2">
+                  <Skeleton className="h-4 w-32" />
+                  <Skeleton className="h-3 w-20" />
+                </div>
+              </div>
+              <Skeleton className="mt-4 h-16 w-full" />
+              <Skeleton className="mt-4 h-6 w-3/4" />
+            </div>
+          ))}
+        </div>
+      ) : tools.length === 0 ? (
+        <div className="rounded-2xl border bg-card p-10 text-center shadow-card">
+          <p className="text-lg font-medium">No tools found</p>
+          <p className="mt-2 text-sm text-muted-foreground">
+            The tools directory is empty. Run the latest Supabase migration to seed the database.
+          </p>
+          <Button type="button" variant="outline" className="mt-4 gap-2" onClick={() => void loadTools()}>
+            <RefreshCw className="h-4 w-4" />
+            Refresh
+          </Button>
+        </div>
+      ) : (
+        <>
+          <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
+            {filtered.map((tl) => (
+              <ToolCard key={tl.id} tool={tl} favorite={favs.has(tl.id)} onToggleFavorite={() => toggleFav(tl.id)} />
+            ))}
+          </div>
+          {filtered.length === 0 && (
+            <p className="py-16 text-center text-muted-foreground">No tools match those filters.</p>
+          )}
+        </>
       )}
     </div>
   );

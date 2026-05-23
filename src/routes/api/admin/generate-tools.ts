@@ -1,0 +1,39 @@
+import { createFileRoute } from "@tanstack/react-router";
+import { generateTools } from "@/lib/agents";
+import { requireAdmin, sanitizeAdminMode } from "@/lib/adminAuth";
+
+type GenerateToolsBody = {
+  mode?: "pro" | "discover";
+};
+
+export const Route = createFileRoute("/api/admin/generate-tools")({
+  server: {
+    handlers: {
+      POST: async ({ request }) => {
+        const auth = await requireAdmin(request);
+        if (auth instanceof Response) return auth;
+
+        try {
+          const body = (await request.json().catch(() => ({}))) as GenerateToolsBody;
+          const mode = sanitizeAdminMode(body.mode);
+          const result = await generateTools(auth.supabase, auth.userId, 8, mode);
+
+          return Response.json({
+            success: true,
+            count: result.count,
+            added: result.added,
+            updated: result.updated,
+            skipped: result.skipped,
+            safetyRejected: result.safetyRejected,
+            created: result.added,
+            mode,
+          });
+        } catch (error) {
+          console.error("[api/admin/generate-tools]", error);
+          const message = error instanceof Error ? error.message : "Generation failed";
+          return Response.json({ error: message }, { status: 500 });
+        }
+      },
+    },
+  },
+});

@@ -29,10 +29,10 @@ export const Route = createRootRoute({
     meta: [
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1" },
-      { title: "Pihlai — One-stop AI hub" },
+      { title: "PiHLAI — One-stop AI hub" },
       { name: "description", content: "Discover AI tools, chat with multiple models in parallel, and switch between Pro and Discover modes." },
-      { name: "author", content: "Pihlai" },
-      { property: "og:title", content: "Pihlai — One-stop AI hub" },
+      { name: "author", content: "PiHLAI" },
+      { property: "og:title", content: "PiHLAI — One-stop AI hub" },
       { property: "og:description", content: "AI tool directory and multi-model chat aggregator." },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary" },
@@ -68,6 +68,7 @@ import { AppProvider } from "@/contexts/AppContext";
 import { NavBar } from "@/components/NavBar";
 import { Toaster } from "@/components/ui/sonner";
 import { SiteHostWidget } from "@/components/SiteHostWidget";
+import { BrandName } from "@/components/BrandName";
 
 function RootComponent() {
   return (
@@ -78,7 +79,7 @@ function RootComponent() {
           <Outlet />
         </main>
         <footer className="border-t border-border/60 py-6 text-center text-xs text-muted-foreground">
-          Pihlai · Built for serious AI work
+          <BrandName /> · Built for serious AI work
         </footer>
       </div>
       <SiteHostWidget />

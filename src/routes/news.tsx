@@ -1,11 +1,15 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useApp } from "@/contexts/AppContext";
 import { Button } from "@/components/ui/button";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "sonner";
 import type { Database } from "@/integrations/supabase/types";
-import { RefreshCw, ArrowUpRight } from "lucide-react";
+import { RefreshCw, ArrowUpRight, AlertCircle } from "lucide-react";
+import { subscribeContentRefresh } from "@/lib/contentRefresh";
+import { NewsFreshness } from "@/components/NewsFreshness";
 
 type NewsPost = Database["public"]["Tables"]["news_posts"]["Row"];
 
@@ -16,33 +20,46 @@ function NewsPage() {
   const [posts, setPosts] = useState<NewsPost[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
-  async function loadPosts() {
-    setLoading(true);
-    const { data, error } = await supabase
+  const loadPosts = useCallback(async (isRefresh = false) => {
+    if (isRefresh) {
+      setRefreshing(true);
+    } else {
+      setLoading(true);
+    }
+    setError(null);
+
+    const { data, error: fetchError } = await supabase
       .from("news_posts")
-      .select("id,title,summary,content,source,url,published_at,created_at")
+      .select("id,title,summary,content,source,url,published_at,created_at,updated_at")
       .order("published_at", { ascending: false })
       .limit(50);
 
-    if (error) {
-      toast.error(error.message);
+    if (fetchError) {
+      setError(fetchError.message);
       setPosts([]);
-    } else {
-      setPosts(data ?? []);
+      toast.error(fetchError.message);
+      setLoading(false);
+      setRefreshing(false);
+      return false;
     }
+
+    setPosts(data ?? []);
     setLoading(false);
-  }
+    setRefreshing(false);
+    return true;
+  }, []);
 
   useEffect(() => {
     void loadPosts();
-  }, []);
+  }, [loadPosts]);
+
+  useEffect(() => subscribeContentRefresh("news", () => void loadPosts(true)), [loadPosts]);
 
   async function onRefresh() {
-    setRefreshing(true);
-    await loadPosts();
-    toast.success("News refreshed");
-    setRefreshing(false);
+    const ok = await loadPosts(true);
+    if (ok) toast.success("News refreshed");
   }
 
   return (
@@ -56,27 +73,52 @@ function NewsPage() {
               : "Recent AI updates with clear context and quick takeaways."}
           </p>
         </div>
-        <Button onClick={onRefresh} disabled={refreshing || loading} className="gap-2">
+        <Button onClick={() => void onRefresh()} disabled={refreshing || loading} className="gap-2">
           <RefreshCw className={`h-4 w-4 ${refreshing ? "animate-spin" : ""}`} />
           Refresh
         </Button>
       </header>
 
+      {error && (
+        <Alert variant="destructive" className="mb-6">
+          <AlertCircle className="h-4 w-4" />
+          <AlertTitle>Could not load news</AlertTitle>
+          <AlertDescription className="flex flex-wrap items-center justify-between gap-3">
+            <span>{error}</span>
+            <Button type="button" variant="outline" size="sm" className="gap-2" onClick={() => void loadPosts()}>
+              <RefreshCw className="h-4 w-4" />
+              Retry
+            </Button>
+          </AlertDescription>
+        </Alert>
+      )}
+
       {loading ? (
-        <div className="rounded-2xl border bg-card p-10 text-center text-muted-foreground">Loading news…</div>
+        <div className="space-y-4">
+          {Array.from({ length: 4 }).map((_, i) => (
+            <div key={i} className="rounded-2xl border bg-card p-5 shadow-card">
+              <Skeleton className="h-3 w-40" />
+              <Skeleton className="mt-3 h-6 w-3/4" />
+              <Skeleton className="mt-3 h-16 w-full" />
+            </div>
+          ))}
+        </div>
       ) : posts.length === 0 ? (
-        <div className="rounded-2xl border bg-card p-10 text-center text-muted-foreground">
-          No news yet. Add rows to `news_posts` to populate this feed.
+        <div className="rounded-2xl border bg-card p-10 text-center shadow-card">
+          <p className="text-lg font-medium">No news yet</p>
+          <p className="mt-2 text-sm text-muted-foreground">
+            The news feed is empty. Run the latest Supabase migration to seed sample articles.
+          </p>
+          <Button type="button" variant="outline" className="mt-4 gap-2" onClick={() => void loadPosts()}>
+            <RefreshCw className="h-4 w-4" />
+            Refresh
+          </Button>
         </div>
       ) : (
         <div className="grid gap-4">
           {posts.map((post) => (
             <article key={post.id} className="rounded-2xl border bg-card p-5 shadow-card">
-              <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground">
-                <span>{new Date(post.published_at).toLocaleDateString()}</span>
-                <span>•</span>
-                <span>{post.source}</span>
-              </div>
+              <NewsFreshness publishedAt={post.published_at} source={post.source} />
               <h2 className="mt-2 text-xl font-semibold">{post.title}</h2>
               <p className="mt-2 text-sm text-muted-foreground">
                 {mode === "pro" ? post.content : post.summary}

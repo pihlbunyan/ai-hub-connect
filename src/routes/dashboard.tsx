@@ -6,6 +6,7 @@ import { ToolCard, type Tool } from "@/components/ToolCard";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import { Sparkles, MessageSquare, Star, Newspaper, Compass } from "lucide-react";
+import { Skeleton } from "@/components/ui/skeleton";
 
 export const Route = createFileRoute("/dashboard")({ component: Dashboard });
 
@@ -18,6 +19,7 @@ function Dashboard() {
   const [favIds, setFavIds] = useState<Set<string>>(new Set());
   const [chats, setChats] = useState<ChatRow[]>([]);
   const [recs, setRecs] = useState<Tool[]>([]);
+  const [dataLoading, setDataLoading] = useState(true);
 
   useEffect(() => {
     if (!loading && !user) {
@@ -28,7 +30,9 @@ function Dashboard() {
 
   async function loadDashboardData() {
     if (!user) return;
-    const { data: favData } = await supabase
+    setDataLoading(true);
+    try {
+      const { data: favData } = await supabase
       .from("favorites")
       .select("tool_id, tools(*)")
       .eq("user_id", user.id);
@@ -68,6 +72,9 @@ function Dashboard() {
       .slice(0, mode === "pro" ? 4 : 3);
 
     setRecs(recommended);
+    } finally {
+      setDataLoading(false);
+    }
   }
 
   useEffect(() => {
@@ -80,6 +87,20 @@ function Dashboard() {
   }, [user, mode]);
 
   if (!user) return null;
+
+  if (dataLoading) {
+    return (
+      <div className="mx-auto max-w-7xl px-6 py-12">
+        <Skeleton className="h-10 w-64" />
+        <Skeleton className="mt-8 h-32 w-full rounded-2xl" />
+        <div className="mt-12 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
+          {Array.from({ length: 3 }).map((_, i) => (
+            <Skeleton key={i} className="h-48 rounded-2xl" />
+          ))}
+        </div>
+      </div>
+    );
+  }
 
   async function toggleFav(toolId: string) {
     const isFav = favIds.has(toolId);
@@ -165,16 +186,29 @@ function Dashboard() {
             : "Based on your mode and saved interests, chosen for clear practical value."}
         </p>
         <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
-          {recs.map((tl) => (
-            <ToolCard key={tl.id} tool={tl} favorite={favIds.has(tl.id)} onToggleFavorite={() => toggleFav(tl.id)} />
-          ))}
+          {recs.length === 0 ? (
+            <div className="col-span-full rounded-2xl border border-dashed bg-card/50 p-8 text-center text-sm text-muted-foreground">
+              No recommendations available right now.
+            </div>
+          ) : (
+            recs.map((tl) => (
+              <ToolCard key={tl.id} tool={tl} favorite={favIds.has(tl.id)} onToggleFavorite={() => toggleFav(tl.id)} />
+            ))
+          )}
         </div>
       </section>
 
       <section>
         <h2 className="mb-4 flex items-center gap-2 text-lg font-semibold"><MessageSquare className="h-4 w-4" /> Recent chats</h2>
         {chats.length === 0 ? (
-          <p className="text-sm text-muted-foreground">No chats yet.</p>
+          <div className="rounded-2xl border border-dashed bg-card/50 p-8 text-center text-sm text-muted-foreground">
+            No chats yet. Start a conversation from the chat page.
+            <div className="mt-4">
+              <Button asChild size="sm">
+                <Link to="/chat">Open chat</Link>
+              </Button>
+            </div>
+          </div>
         ) : (
           <div className="divide-y rounded-2xl border bg-card">
             {chats.map((c) => (

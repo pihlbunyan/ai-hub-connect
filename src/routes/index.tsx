@@ -1,11 +1,14 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useApp } from "@/contexts/AppContext";
 import { Button } from "@/components/ui/button";
 import { ArrowRight, Sparkles, Zap, Layers, MessageSquare, Compass } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import type { Database } from "@/integrations/supabase/types";
 import { HomePihlHost } from "@/components/HomePihlHost";
+import { Skeleton } from "@/components/ui/skeleton";
+import { NewsFreshness } from "@/components/NewsFreshness";
+import { subscribeContentRefresh } from "@/lib/contentRefresh";
 
 type NewsPost = Database["public"]["Tables"]["news_posts"]["Row"];
 
@@ -14,15 +17,25 @@ export const Route = createFileRoute("/")({ component: Index });
 function Index() {
   const { t, mode } = useApp();
   const [latestNews, setLatestNews] = useState<NewsPost[]>([]);
+  const [newsLoading, setNewsLoading] = useState(true);
+
+  const loadLatestNews = useCallback(async () => {
+    setNewsLoading(true);
+    const { data, error } = await supabase
+      .from("news_posts")
+      .select("id,title,summary,content,source,url,published_at,created_at,updated_at")
+      .order("published_at", { ascending: false })
+      .limit(4);
+
+    if (!error) setLatestNews(data ?? []);
+    setNewsLoading(false);
+  }, []);
 
   useEffect(() => {
-    supabase
-      .from("news_posts")
-      .select("id,title,summary,content,source,url,published_at,created_at")
-      .order("published_at", { ascending: false })
-      .limit(4)
-      .then(({ data }) => setLatestNews(data ?? []));
-  }, []);
+    void loadLatestNews();
+  }, [loadLatestNews]);
+
+  useEffect(() => subscribeContentRefresh("news", () => void loadLatestNews()), [loadLatestNews]);
 
   return (
     <div>
@@ -118,17 +131,21 @@ function Index() {
             <Link to="/news">View all</Link>
           </Button>
         </div>
-        {latestNews.length === 0 ? (
-          <div className="rounded-2xl border bg-card p-6 text-sm text-muted-foreground">
-            No news available yet.
+        {newsLoading ? (
+          <div className="grid gap-4 sm:grid-cols-2">
+            {Array.from({ length: 2 }).map((_, i) => (
+              <Skeleton key={i} className="h-40 rounded-2xl" />
+            ))}
+          </div>
+        ) : latestNews.length === 0 ? (
+          <div className="rounded-2xl border bg-card p-6 text-center text-sm text-muted-foreground">
+            No news yet.
           </div>
         ) : (
           <div className="grid gap-4 sm:grid-cols-2">
             {latestNews.map((post) => (
               <article key={post.id} className="rounded-2xl border bg-card p-5 shadow-card">
-                <div className="text-xs text-muted-foreground">
-                  {new Date(post.published_at).toLocaleDateString()} · {post.source}
-                </div>
+                <NewsFreshness publishedAt={post.published_at} source={post.source} />
                 <h3 className="mt-2 line-clamp-2 text-lg font-semibold">{post.title}</h3>
                 <p className="mt-2 line-clamp-3 text-sm text-muted-foreground">
                   {mode === "pro" ? post.content : post.summary}

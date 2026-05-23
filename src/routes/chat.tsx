@@ -1,31 +1,42 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useApp } from "@/contexts/AppContext";
 import { Button } from "@/components/ui/button";
-import { Textarea } from "@/components/ui/textarea";
+import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { Switch } from "@/components/ui/switch";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { Loader2, Zap } from "lucide-react";
+import { Bot, Loader2, Send, Sparkles, Zap } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/chat")({ component: ChatPage });
 
-type Result = {
-  label: string;
-  content?: string;
-  error?: string;
-  latency?: number;
+type Usage = {
+  model: string;
+  latency: number;
   tokensIn?: number;
   tokensOut?: number;
-  cost?: number;
+  cost?: number; // USD
 };
 
 function ChatPage() {
   const { t, mode, user } = useApp();
   const [prompt, setPrompt] = useState("");
   const [running, setRunning] = useState(false);
-  const [results, setResults] = useState<Result[]>([]);
+  const [parallelMode] = useState(false); // reserved for future multi-model fanout
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [messages, setMessages] = useState<Array<{
+    id: string;
+    role: "user" | "assistant";
+    content: string;
+    usage?: Usage;
+  }>>([]);
+  const abortRef = useRef<AbortController | null>(null);
+  const messageCounterRef = useRef(0);
 
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -36,40 +47,200 @@ function ChatPage() {
     }
   }, []);
 
+  function nextMessageId(prefix: string): string {
+    messageCounterRef.current += 1;
+    return `${prefix}-${Date.now()}-${messageCounterRef.current}`;
+  }
+
   async function run() {
     if (!prompt.trim()) return;
+    const currentPrompt = prompt.trim();
+    const userMessageId = nextMessageId("user");
+    const assistantMessageId = nextMessageId("assistant");
+    const startedAt = Date.now();
+
+    setErrorMessage(null);
     setRunning(true);
-    setResults([]);
+    setPrompt("");
+    setMessages((prev) => [
+      ...prev,
+      { id: userMessageId, role: "user", content: currentPrompt },
+      { id: assistantMessageId, role: "assistant", content: "" },
+    ]);
+
+    const controller = new AbortController();
+    abortRef.current = controller;
+
     try {
       const r = await fetch("/api/public/chat-aggregate", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ prompt, models: ["grok"] }),
+        signal: controller.signal,
+        body: JSON.stringify({
+          prompt: currentPrompt,
+          mode,
+          stream: true,
+          models: ["grok"],
+        }),
       });
-      const data = await r.json();
-      if (!r.ok) throw new Error(data.error || "Request failed");
-      setResults(data.results);
-      // persist if logged in
+
+      if (!r.ok) {
+        const data = await r.json().catch(() => ({}));
+        throw new Error((data as { error?: string }).error || "Request failed");
+      }
+
+      if (!r.body) throw new Error("Streaming response missing body");
+
+      const reader = r.body.getReader();
+      const decoder = new TextDecoder();
+      let buffer = "";
+      let doneUsage: Usage | undefined;
+      let finalContent = "";
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+
+        buffer += decoder.decode(value, { stream: true });
+        const lines = buffer.split("\n");
+        buffer = lines.pop() ?? "";
+
+        for (const line of lines) {
+          if (!line.trim()) continue;
+          const event = JSON.parse(line) as
+            | { type: "delta"; delta: string }
+            | { type: "done"; label: string; content: string; latency: number; tokensIn: number; tokensOut: number; cost: number }
+            | { type: "error"; error: string };
+
+          if (event.type === "delta") {
+            finalContent += event.delta;
+            setMessages((prev) =>
+              prev.map((message) =>
+                message.id === assistantMessageId
+                  ? { ...message, content: message.content + event.delta }
+                  : message,
+              ),
+            );
+          } else if (event.type === "done") {
+            finalContent = event.content;
+            doneUsage = {
+              model: event.label,
+              latency: event.latency,
+              tokensIn: event.tokensIn,
+              tokensOut: event.tokensOut,
+              cost: event.cost,
+            };
+            setMessages((prev) =>
+              prev.map((message) =>
+                message.id === assistantMessageId
+                  ? {
+                      ...message,
+                      content: event.content,
+                      usage: doneUsage,
+                    }
+                  : message,
+              ),
+            );
+          } else if (event.type === "error") {
+            throw new Error(event.error || "Streaming failed");
+          }
+        }
+      }
+      if (buffer.trim()) {
+        const event = JSON.parse(buffer.trim()) as
+          | { type: "delta"; delta: string }
+          | { type: "done"; label: string; content: string; latency: number; tokensIn: number; tokensOut: number; cost: number }
+          | { type: "error"; error: string };
+        if (event.type === "done") {
+          finalContent = event.content;
+          doneUsage = {
+            model: event.label,
+            latency: event.latency,
+            tokensIn: event.tokensIn,
+            tokensOut: event.tokensOut,
+            cost: event.cost,
+          };
+          setMessages((prev) =>
+            prev.map((message) =>
+              message.id === assistantMessageId
+                ? {
+                    ...message,
+                    content: event.content,
+                    usage: doneUsage,
+                  }
+                : message,
+            ),
+          );
+        } else if (event.type === "error") {
+          throw new Error(event.error || "Streaming failed");
+        }
+      }
+
+      if (!doneUsage) {
+        doneUsage = {
+          model: "Grok 4",
+          latency: Date.now() - startedAt,
+          tokensIn: 0,
+          tokensOut: 0,
+          cost: 0,
+        };
+        setMessages((prev) =>
+          prev.map((message) =>
+            message.id === assistantMessageId
+              ? {
+                  ...message,
+                  usage: doneUsage,
+                }
+              : message,
+          ),
+        );
+      }
+
       if (user) {
-        const totalTokens = data.results.reduce((s: number, x: Result) => s + (x.tokensIn ?? 0) + (x.tokensOut ?? 0), 0);
-        const responses = Object.fromEntries(data.results.map((x: Result) => [x.label, x]));
+        const tokensUsed = (doneUsage.tokensIn ?? 0) + (doneUsage.tokensOut ?? 0);
         await supabase.from("chats").insert({
           user_id: user.id,
-          prompt,
+          prompt: currentPrompt,
           models_used: ["grok"],
-          responses,
-          tokens_used: totalTokens,
+          responses: {
+            mode,
+            model: doneUsage.model,
+            output: finalContent,
+            usage: doneUsage,
+          },
+          tokens_used: tokensUsed,
         });
       }
     } catch (e: unknown) {
-      toast.error(e instanceof Error ? e.message : "Failed to run");
+      const message = e instanceof Error ? e.message : "Failed to run";
+      setErrorMessage(message);
+      toast.error(message);
+      setMessages((prev) =>
+        prev.map((m) =>
+          m.id === assistantMessageId && !m.content
+            ? { ...m, content: "I hit an error while contacting Grok. Please try again." }
+            : m,
+        ),
+      );
     } finally {
+      abortRef.current = null;
       setRunning(false);
     }
   }
 
-  const totalCost = results.reduce((s, r) => s + (r.cost ?? 0), 0);
-  const totalTokens = results.reduce((s, r) => s + (r.tokensIn ?? 0) + (r.tokensOut ?? 0), 0);
+  function stopRun() {
+    abortRef.current?.abort();
+    abortRef.current = null;
+    setRunning(false);
+  }
+
+  const latestUsage = useMemo(
+    () =>
+      [...messages]
+        .reverse()
+        .find((message) => message.role === "assistant" && message.usage)?.usage,
+    [messages],
+  );
 
   return (
     <div className="mx-auto max-w-7xl px-6 py-12">
@@ -78,95 +249,147 @@ function ChatPage() {
         <p className="mt-2 text-muted-foreground">{t.chatSubtitle}</p>
       </header>
 
-      <div className="grid gap-6 lg:grid-cols-[1fr_300px]">
-        <div className="rounded-2xl border bg-card p-6 shadow-card">
-          <Label htmlFor="prompt" className={cn(mode === "discover" && "text-base")}>{t.chatPromptLabel}</Label>
-          <Textarea
-            id="prompt"
-            value={prompt}
-            onChange={(e) => setPrompt(e.target.value)}
-            placeholder={t.chatPromptPlaceholder}
-            className={cn("mt-2 min-h-32", mode === "discover" && "min-h-40 text-base")}
-          />
-          <div className="mt-4 flex items-center justify-between gap-3">
-            <div className="text-xs text-muted-foreground">
-              1 model selected
-            </div>
-            <Button
-              onClick={run}
-              disabled={running || !prompt.trim()}
-              size={mode === "discover" ? "lg" : "default"}
-              className="gap-2"
-            >
-              {running ? <Loader2 className="h-4 w-4 animate-spin" /> : <Zap className="h-4 w-4" />}
-              {running ? t.chatRunning : t.chatRun}
-            </Button>
-          </div>
-        </div>
-
-        <div className="rounded-2xl border bg-card p-6 shadow-card">
-          <Label className={cn(mode === "discover" && "text-base")}>{t.chatModelsLabel}</Label>
-          <div className="mt-3">
-            <Button
-              type="button"
-              variant="default"
-              size={mode === "discover" ? "lg" : "default"}
-              className="h-auto w-full justify-start rounded-xl px-4 py-3 text-left shadow-sm"
-            >
+      <div className="grid gap-6 lg:grid-cols-[280px_minmax(0,1fr)]">
+        <Card className="h-fit">
+          <CardHeader className="pb-4">
+            <CardTitle className="text-lg">{t.chatModelsLabel}</CardTitle>
+            <CardDescription>Single-model aggregator (multi-model soon)</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <Button type="button" variant="default" className="h-auto w-full justify-start rounded-xl px-4 py-3 text-left">
               <div className="flex flex-col items-start">
-                <span className={cn("font-semibold", mode === "discover" && "text-base")}>Grok 4 (Recommended)</span>
-                <span className="text-xs font-normal text-primary-foreground/85">Fast, strong reasoning, best default</span>
+                <span className={cn("font-semibold", mode === "discover" && "text-base")}>Grok 4 (selected)</span>
+                <span className="text-xs font-normal text-primary-foreground/85">Default engine for fast, strong responses</span>
               </div>
             </Button>
-            <p className="mt-2 text-xs text-muted-foreground">All prompts are currently sent to Grok.</p>
-          </div>
-        </div>
-      </div>
+            <div className="rounded-xl border bg-muted/30 p-3">
+              <div className="flex items-center justify-between gap-3">
+                <div>
+                  <p className="text-sm font-medium">Parallel mode</p>
+                  <p className="text-xs text-muted-foreground">Placeholder for future multi-model fanout</p>
+                </div>
+                <Switch checked={parallelMode} disabled aria-label="Parallel mode coming soon" />
+              </div>
+            </div>
+            {latestUsage && (
+              <div className="space-y-2 rounded-xl border bg-background/70 p-3 text-xs">
+                <p className="font-semibold text-foreground">Latest run</p>
+                <p className="text-muted-foreground">
+                  {latestUsage.model} · {latestUsage.latency}ms
+                </p>
+                <div className="flex gap-2">
+                  <Badge variant="secondary">{t.chatTokensLabel}: {(latestUsage.tokensIn ?? 0) + (latestUsage.tokensOut ?? 0)}</Badge>
+                  <Badge variant="outline">{t.chatCostLabel}: ${(latestUsage.cost ?? 0).toFixed(6)}</Badge>
+                </div>
+              </div>
+            )}
+          </CardContent>
+        </Card>
 
-      {results.length > 0 && (
-        <>
-          <div className="mt-8 flex flex-wrap gap-4 text-sm">
-            <Pill label={t.chatTokensLabel} value={String(totalTokens)} />
-            <Pill label={t.chatCostLabel} value={`$${totalCost.toFixed(5)}`} />
-            <Pill label="Models" value={String(results.length)} />
-          </div>
-          <div className={cn("mt-6 grid gap-4", results.length > 1 ? "lg:grid-cols-2 xl:grid-cols-3" : "")}>
-            {results.map((r) => (
-              <article key={r.label} className="flex flex-col rounded-2xl border bg-card p-5 shadow-card">
-                <header className="mb-3 flex items-center justify-between">
-                  <h3 className="font-semibold">{r.label}</h3>
-                  {r.latency && (
-                    <span className="text-xs text-muted-foreground">{r.latency}ms</span>
-                  )}
-                </header>
-                {r.error ? (
-                  <p className="text-sm text-destructive">{r.error}</p>
+        <Card>
+          <CardContent className="p-4 sm:p-6">
+            <ScrollArea className="h-[480px] rounded-xl border bg-background/40 p-4">
+              {messages.length === 0 ? (
+                <div className="flex h-full items-center justify-center text-sm text-muted-foreground">
+                  Start by sending a prompt to Grok.
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  {messages.map((message) => (
+                    <article key={message.id} className={cn("flex", message.role === "user" ? "justify-end" : "justify-start")}>
+                      <div
+                        className={cn(
+                          "max-w-[90%] rounded-2xl border px-4 py-3 shadow-sm",
+                          message.role === "user"
+                            ? "border-primary/40 bg-primary text-primary-foreground"
+                            : "border-border bg-card text-card-foreground",
+                        )}
+                      >
+                        {message.role === "assistant" && (
+                          <div className="mb-2 flex items-center gap-2 text-xs text-muted-foreground">
+                            <Bot className="h-3.5 w-3.5" />
+                            <span>Grok</span>
+                          </div>
+                        )}
+                        {mode === "pro" || message.role === "user" ? (
+                          <pre className="whitespace-pre-wrap break-words text-sm leading-relaxed font-sans">{message.content || (running ? "Streaming response..." : "")}</pre>
+                        ) : (
+                          <div className="space-y-2">
+                            {message.content
+                              .split("\n")
+                              .filter((line) => line.trim())
+                              .map((line) => (
+                                <div key={`${message.id}-${line.slice(0, 20)}`} className="rounded-lg bg-muted/40 px-3 py-2 text-sm leading-relaxed">
+                                  {line}
+                                </div>
+                              ))}
+                            {!message.content && running && <p className="text-sm text-muted-foreground">Streaming response...</p>}
+                          </div>
+                        )}
+                        {mode === "pro" && message.usage && (
+                          <div className="mt-3 border-t pt-2 text-[11px] text-muted-foreground">
+                            {message.usage.model} · {message.usage.latency}ms · in {message.usage.tokensIn ?? 0} · out {message.usage.tokensOut ?? 0} · ${(
+                              message.usage.cost ?? 0
+                            ).toFixed(6)}
+                          </div>
+                        )}
+                      </div>
+                    </article>
+                  ))}
+                </div>
+              )}
+            </ScrollArea>
+
+            {errorMessage && (
+              <div className="mt-3 rounded-lg border border-destructive/30 bg-destructive/5 px-3 py-2 text-sm text-destructive">
+                {errorMessage}
+              </div>
+            )}
+
+            <div className="mt-4 space-y-2">
+              <Label htmlFor="prompt" className={cn(mode === "discover" && "text-base")}>
+                {t.chatPromptLabel}
+              </Label>
+              <div className="flex items-center gap-2">
+                <Input
+                  id="prompt"
+                  value={prompt}
+                  onChange={(e) => setPrompt(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" && !e.shiftKey) {
+                      e.preventDefault();
+                      void run();
+                    }
+                  }}
+                  placeholder={t.chatPromptPlaceholder}
+                  className={cn("h-11", mode === "discover" && "text-base")}
+                />
+                {running ? (
+                  <Button type="button" variant="outline" onClick={stopRun}>
+                    Stop
+                  </Button>
                 ) : (
-                  <>
-                    <div className="prose prose-sm max-w-none whitespace-pre-wrap text-sm text-foreground/90 dark:prose-invert">
-                      {r.content}
-                    </div>
-                    {mode === "pro" && (
-                      <footer className="mt-3 border-t pt-3 text-[11px] text-muted-foreground">
-                        in {r.tokensIn} · out {r.tokensOut} · ${r.cost?.toFixed(6) ?? "0"}
-                      </footer>
-                    )}
-                  </>
+                  <Button
+                    type="button"
+                    onClick={run}
+                    disabled={!prompt.trim()}
+                    size={mode === "discover" ? "lg" : "default"}
+                    className="gap-2"
+                  >
+                    <Send className="h-4 w-4" />
+                    {t.chatRun}
+                  </Button>
                 )}
-              </article>
-            ))}
-          </div>
-        </>
-      )}
-    </div>
-  );
-}
-
-function Pill({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="rounded-xl border bg-card px-4 py-2">
-      <div className="text-[10px] uppercase tracking-wider text-muted-foreground">{label}</div>
-      <div className="font-display text-lg font-semibold">{value}</div>
+              </div>
+              <div className="flex items-center gap-3 text-xs text-muted-foreground">
+                {running ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
+                <span>{running ? t.chatRunning : "Streaming from Grok in real time"}</span>
+                <span className="inline-flex items-center gap-1"><Zap className="h-3.5 w-3.5" /> 1 model selected</span>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
     </div>
   );
 }

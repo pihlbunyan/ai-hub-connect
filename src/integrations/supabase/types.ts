@@ -14,6 +14,39 @@ export type Database = {
   }
   public: {
     Tables: {
+      agent_runs: {
+        Row: {
+          created_at: string
+          error: string | null
+          id: string
+          input: Json
+          metadata: Json | null
+          output: Json
+          success: boolean
+          type: string
+        }
+        Insert: {
+          created_at?: string
+          error?: string | null
+          id?: string
+          input?: Json
+          metadata?: Json | null
+          output?: Json
+          success?: boolean
+          type: string
+        }
+        Update: {
+          created_at?: string
+          error?: string | null
+          id?: string
+          input?: Json
+          metadata?: Json | null
+          output?: Json
+          success?: boolean
+          type?: string
+        }
+        Relationships: []
+      }
       chats: {
         Row: {
           created_at: string
@@ -70,6 +103,39 @@ export type Database = {
           },
         ]
       }
+      grok_usage_logs: {
+        Row: {
+          agent_type: string
+          cost: number
+          created_at: string
+          id: string
+          model: string | null
+          tokens_in: number
+          tokens_out: number
+          usage_date: string
+        }
+        Insert: {
+          agent_type: string
+          cost?: number
+          created_at?: string
+          id?: string
+          model?: string | null
+          tokens_in?: number
+          tokens_out?: number
+          usage_date?: string
+        }
+        Update: {
+          agent_type?: string
+          cost?: number
+          created_at?: string
+          id?: string
+          model?: string | null
+          tokens_in?: number
+          tokens_out?: number
+          usage_date?: string
+        }
+        Relationships: []
+      }
       news_posts: {
         Row: {
           content: string
@@ -79,6 +145,7 @@ export type Database = {
           source: string
           summary: string
           title: string
+          updated_at: string
           url: string
         }
         Insert: {
@@ -89,6 +156,7 @@ export type Database = {
           source: string
           summary: string
           title: string
+          updated_at?: string
           url: string
         }
         Update: {
@@ -99,7 +167,41 @@ export type Database = {
           source?: string
           summary?: string
           title?: string
+          updated_at?: string
           url?: string
+        }
+        Relationships: []
+      }
+      prompt_saves: {
+        Row: {
+          category: string
+          created_at: string
+          id: string
+          content: string
+          prompt_id: string
+          title: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          category: string
+          created_at?: string
+          id?: string
+          content: string
+          prompt_id: string
+          title: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          category?: string
+          created_at?: string
+          id?: string
+          content?: string
+          prompt_id?: string
+          title?: string
+          updated_at?: string
+          user_id?: string
         }
         Relationships: []
       }
@@ -184,7 +286,10 @@ export type Database = {
           pro_summary: string | null
           pro_tags: string[]
           rating: number
+          safety_notes: string | null
+          safety_score: number | null
           slug: string
+          updated_at: string
           url: string | null
           vendor: string | null
         }
@@ -203,7 +308,10 @@ export type Database = {
           pro_summary?: string | null
           pro_tags?: string[]
           rating?: number
+          safety_notes?: string | null
+          safety_score?: number | null
           slug: string
+          updated_at?: string
           url?: string | null
           vendor?: string | null
         }
@@ -222,7 +330,10 @@ export type Database = {
           pro_summary?: string | null
           pro_tags?: string[]
           rating?: number
+          safety_notes?: string | null
+          safety_score?: number | null
           slug?: string
+          updated_at?: string
           url?: string | null
           vendor?: string | null
         }
@@ -251,6 +362,18 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      claim_first_admin: {
+        Args: Record<PropertyKey, never>
+        Returns: boolean
+      }
+      get_prompt_catalog_timestamps: {
+        Args: Record<PropertyKey, never>
+        Returns: {
+          prompt_id: string
+          created_at: string
+          updated_at: string
+        }[]
+      }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]

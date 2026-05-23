@@ -3,9 +3,10 @@ import { useApp } from "@/contexts/AppContext";
 import { Button } from "@/components/ui/button";
 import { Sparkles, Moon, Sun, LogOut } from "lucide-react";
 import { ModeToggle } from "./ModeToggle";
+import { BrandName } from "./BrandName";
 
 export function NavBar() {
-  const { t, theme, toggleTheme, user, signOut } = useApp();
+  const { t, mode, theme, toggleTheme, user, signOut } = useApp();
   const username =
     (user?.user_metadata?.display_name as string | undefined)?.trim() ||
     user?.email?.split("@")[0] ||
@@ -18,13 +19,14 @@ export function NavBar() {
           <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-br from-primary to-accent text-primary-foreground shadow-glow">
             <Sparkles className="h-4 w-4" />
           </div>
-          <span>Pihlai</span>
+          <BrandName />
           <span className="hidden text-xs font-normal text-muted-foreground sm:inline">{t.tagline}</span>
         </Link>
 
         <nav className="hidden items-center gap-1 md:flex">
           <NavLink to="/tools">{t.navDirectory}</NavLink>
           <NavLink to="/topics">{t.navTopics}</NavLink>
+          <NavLink to="/prompts">{mode === "pro" ? "Prompt Repo" : "Example Prompts"}</NavLink>
           <NavLink to="/chat">{t.navChat}</NavLink>
           <NavLink to="/news">{t.navNews}</NavLink>
           <NavLink to="/dashboard">{t.navDashboard}</NavLink>

@@ -11,6 +11,7 @@ type Copy = {
   navChat: string;
   navNews: string;
   navTopics: string;
+  navPrompts: string;
   navDashboard: string;
   navAdmin: string;
   toggleHint: string;
@@ -47,6 +48,7 @@ export const copy: Record<Mode, Copy> = {
     navChat: "Ask AI",
     navNews: "News",
     navTopics: "AI Topics",
+    navPrompts: "Prompt Repo",
     navDashboard: "My tools",
     navAdmin: "Admin",
     toggleHint: "Switch to Pro mode",
@@ -67,11 +69,11 @@ export const copy: Record<Mode, Copy> = {
     chatCostLabel: "Approx. cost",
     dashboardTitle: "Your dashboard",
     dashboardEmpty: "No favorites yet. Save tools to build your shortlist.",
-    authTitle: "Welcome to Pihlai",
+    authTitle: "Welcome",
     authSubtitle: "Make an account to save favorites and chat history.",
   },
   pro: {
-    tagline: "Pihlai // Pro AI workbench",
+    tagline: "Pro AI workbench",
     heroTitle: "Master AI. Accelerate Your Results.",
     heroSubtitle:
       "Curated AI tooling, multi-model parallel inference, and per-call cost analytics. Built for operators.",
@@ -81,6 +83,7 @@ export const copy: Record<Mode, Copy> = {
     navChat: "Aggregator",
     navNews: "News",
     navTopics: "AI Topics",
+    navPrompts: "Prompts",
     navDashboard: "Dashboard",
     navAdmin: "Admin",
     toggleHint: "Switch to Discover view",
@@ -101,7 +104,7 @@ export const copy: Record<Mode, Copy> = {
     chatCostLabel: "Est. cost (USD)",
     dashboardTitle: "Workspace",
     dashboardEmpty: "No saved tools. Pin tools to surface them here with quick-access metadata.",
-    authTitle: "Pihlai access",
+    authTitle: "Access",
     authSubtitle: "Sign in to persist sessions, favorites, and chat aggregator history.",
   },
 };

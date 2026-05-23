@@ -1,4 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
+import { enforcePublicRateLimit, sanitizeMode, sanitizePrompt } from "@/lib/apiSecurity";
 
 type HostRequest = {
   prompt?: string;
@@ -9,13 +10,17 @@ export const Route = createFileRoute("/api/public/site-host")({
   server: {
     handlers: {
       POST: async ({ request }) => {
+        // Rate limit: 30 req/min per IP (stub — swap for KV/Redis in production)
+        const limited = enforcePublicRateLimit(request, "site-host");
+        if (limited) return limited;
+
         try {
           const body = (await request.json()) as HostRequest;
-          const prompt = body.prompt?.trim();
-          const mode = body.mode === "pro" ? "pro" : "discover";
+          const prompt = sanitizePrompt(body?.prompt, 2_000);
+          const mode = sanitizeMode(body?.mode);
 
           if (!prompt) {
-            return Response.json({ error: "Prompt is required" }, { status: 400 });
+            return Response.json({ error: "Prompt is required and must be under 2,000 characters" }, { status: 400 });
           }
 
           const apiKey = process.env.GROK_API_KEY;
@@ -23,9 +28,9 @@ export const Route = createFileRoute("/api/public/site-host")({
             return Response.json({ error: "GROK_API_KEY missing" }, { status: 500 });
           }
 
-          const systemPrompt = `You are Pihl, Pihlai's AI site host.
+          const systemPrompt = `You are Pihl, PiHLAI's AI site host.
 Mode: ${mode}.
-Primary goal: route users to the best INTERNAL Pihlai destination first.
+Primary goal: route users to the best INTERNAL PiHLAI destination first.
 Site structure:
 - Directory: /tools
 - Tool detail: /tools/$slug (examples: /tools/midjourney, /tools/runway, /tools/elevenlabs, /tools/chatgpt)
@@ -67,7 +72,7 @@ Keep answer compact (max 5 short sentences).`;
             return Response.json({ error }, { status: grokResponse.status });
           }
 
-          const content = data?.choices?.[0]?.message?.content ?? "I can help you find the right page in Pihlai.";
+          const content = data?.choices?.[0]?.message?.content ?? "I can help you find the right page in PiHLAI.";
           return Response.json({ content });
         } catch (error) {
           console.error(error);

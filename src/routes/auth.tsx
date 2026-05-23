@@ -7,11 +7,12 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
+import { BrandName } from "@/components/BrandName";
 
 export const Route = createFileRoute("/auth")({ component: AuthPage });
 
 function AuthPage() {
-  const { t, user } = useApp();
+  const { t, mode, user } = useApp();
   const nav = useNavigate();
   const [tab, setTab] = useState<"signin" | "signup">("signin");
   const [email, setEmail] = useState("");
@@ -72,7 +73,17 @@ function AuthPage() {
   return (
     <div className="mx-auto flex min-h-[calc(100vh-8rem)] max-w-md items-center px-6 py-12">
       <div className="w-full rounded-2xl border bg-card p-8 shadow-card">
-        <h1 className="font-display text-2xl font-bold">{t.authTitle}</h1>
+        <h1 className="font-display text-2xl font-bold">
+          {mode === "pro" ? (
+            <>
+              <BrandName /> access
+            </>
+          ) : (
+            <>
+              Welcome to <BrandName />
+            </>
+          )}
+        </h1>
         <p className="mt-1 text-sm text-muted-foreground">{t.authSubtitle}</p>
 
         <div className="mt-6 inline-flex rounded-md border p-0.5 text-sm">
@@ -140,7 +151,7 @@ function AuthPage() {
           </Button>
           {tab === "signin" && (
             <p className="text-center text-sm text-muted-foreground">
-              New to Pihlai?{" "}
+              New to <BrandName />?{" "}
               <button
                 type="button"
                 onClick={() => {

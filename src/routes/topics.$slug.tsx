@@ -105,8 +105,8 @@ function TopicDetailPage() {
       </Link>
 
       <header className="mb-8 rounded-2xl border bg-card p-8 shadow-card">
-        <h1 className={`font-display font-bold ${mode === "pro" ? "text-4xl" : "text-3xl"}`}>{title}</h1>
-        <p className={`mt-3 text-muted-foreground ${mode === "pro" ? "text-base leading-7" : "text-sm leading-6"}`}>{description}</p>
+        <h1 className="font-display text-4xl font-bold">{title}</h1>
+        <p className="mt-3 text-base leading-7 text-muted-foreground">{description}</p>
       </header>
 
       <section className="mb-6 rounded-2xl border bg-card p-6">
@@ -211,7 +211,7 @@ function TopicDetailPage() {
       </section>
 
       <div className="mt-8 mb-2">
-        <Button asChild size={mode === "discover" ? "lg" : "default"} className="gap-2 shadow-sm">
+        <Button asChild className="gap-2 shadow-sm">
           <Link to="/chat" search={{ prompt: chatPrompt } as never}>
             <MessageSquarePlus className="h-4 w-4" />
             Open in Chat
