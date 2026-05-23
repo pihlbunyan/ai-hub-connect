@@ -18,6 +18,7 @@ type Copy = {
   directoryTitle: string;
   directorySubtitle: string;
   searchPlaceholder: string;
+  newsSearchPlaceholder: string;
   filterCategory: string;
   filterCost: string;
   filterAudience: string;
@@ -55,6 +56,7 @@ export const copy: Record<Mode, Copy> = {
     directoryTitle: "Find the right AI tool",
     directorySubtitle: "Practical summaries and clear categories to help you choose with confidence.",
     searchPlaceholder: "Search by name…",
+    newsSearchPlaceholder: "Search news by title, summary, or source…",
     filterCategory: "Use case",
     filterCost: "Price",
     filterAudience: "Who it's for",
@@ -90,6 +92,7 @@ export const copy: Record<Mode, Copy> = {
     directoryTitle: "Tool directory",
     directorySubtitle: "Filterable index of frontier tools across categories, with audience and cost-tier metadata.",
     searchPlaceholder: "Query tools, vendors, capabilities…",
+    newsSearchPlaceholder: "Filter stories — title, summary, source…",
     filterCategory: "Category",
     filterCost: "Cost tier",
     filterAudience: "Audience",

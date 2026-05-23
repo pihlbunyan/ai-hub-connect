@@ -136,11 +136,45 @@ export type Database = {
         }
         Relationships: []
       }
+      official_social_posts: {
+        Row: {
+          author_handle: string
+          author_name: string
+          created_at: string
+          id: string
+          posted_at: string
+          text: string
+          updated_at: string
+          url: string
+        }
+        Insert: {
+          author_handle: string
+          author_name: string
+          created_at?: string
+          id?: string
+          posted_at: string
+          text: string
+          updated_at?: string
+          url: string
+        }
+        Update: {
+          author_handle?: string
+          author_name?: string
+          created_at?: string
+          id?: string
+          posted_at?: string
+          text?: string
+          updated_at?: string
+          url?: string
+        }
+        Relationships: []
+      }
       news_posts: {
         Row: {
           content: string
           created_at: string
           id: string
+          image_url: string | null
           published_at: string
           source: string
           summary: string
@@ -152,6 +186,7 @@ export type Database = {
           content: string
           created_at?: string
           id?: string
+          image_url?: string | null
           published_at: string
           source: string
           summary: string
@@ -163,6 +198,7 @@ export type Database = {
           content?: string
           created_at?: string
           id?: string
+          image_url?: string | null
           published_at?: string
           source?: string
           summary?: string

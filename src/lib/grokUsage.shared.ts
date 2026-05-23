@@ -11,6 +11,8 @@ export type GrokAgentType =
   | "generateTools"
   | "generateToolsSafety"
   | "generateNews"
+  | "generateNewsCredibility"
+  | "generateOfficialUpdates"
   | "generatePrompts"
   | "chat"
   | "siteHost"

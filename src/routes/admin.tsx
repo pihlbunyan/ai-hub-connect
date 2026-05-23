@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "sonner";
 import { emitContentRefresh, type ContentTarget } from "@/lib/contentRefresh";
-import { Database, Download, Loader2, RefreshCw, Sparkles, Newspaper, Wrench } from "lucide-react";
+import { BadgeCheck, Database, Download, Loader2, RefreshCw, Sparkles, Newspaper, Wrench } from "lucide-react";
 import { GrokUsageCard } from "@/components/GrokUsageCard";
 
 export const Route = createFileRoute("/admin")({ component: Admin });
@@ -41,7 +41,7 @@ function Admin() {
   const [counts, setCounts] = useState<Counts | null>(null);
   const [countsLoading, setCountsLoading] = useState(false);
   const [backingUp, setBackingUp] = useState(false);
-  const [generating, setGenerating] = useState<"tools" | "news" | "prompts" | null>(null);
+  const [generating, setGenerating] = useState<"tools" | "news" | "official" | "prompts" | null>(null);
   const [lastSuccess, setLastSuccess] = useState<GenerationSuccess | null>(null);
   const [usageRefreshKey, setUsageRefreshKey] = useState(0);
 
@@ -188,6 +188,20 @@ function Admin() {
       setUsageRefreshKey((k) => k + 1);
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "News generation failed");
+    } finally {
+      setGenerating(null);
+    }
+  }
+
+  async function runGenerateOfficialUpdates() {
+    setGenerating("official");
+    try {
+      const data = await callAdminApi("/api/admin/generate-official-updates");
+      generationToast(data, "official post");
+      markGenerationSuccess("official-updates", "official posts", data, "/news");
+      setUsageRefreshKey((k) => k + 1);
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Official updates generation failed");
     } finally {
       setGenerating(null);
     }
@@ -345,6 +359,25 @@ function Admin() {
                 <span>
                   <span className="block font-semibold">Generate 5 News Items</span>
                   <span className="block text-xs font-normal opacity-90">Upsert into news_posts table</span>
+                </span>
+              </Button>
+              <Button
+                size="lg"
+                variant="secondary"
+                className="h-auto justify-start gap-3 px-5 py-4 text-left"
+                disabled={generating !== null}
+                onClick={() => void runGenerateOfficialUpdates()}
+              >
+                {generating === "official" ? (
+                  <Loader2 className="h-5 w-5 shrink-0 animate-spin" />
+                ) : (
+                  <BadgeCheck className="h-5 w-5 shrink-0" />
+                )}
+                <span>
+                  <span className="block font-semibold">Generate Official Updates</span>
+                  <span className="block text-xs font-normal opacity-90">
+                    Verified X posts from major AI accounts
+                  </span>
                 </span>
               </Button>
               <Button

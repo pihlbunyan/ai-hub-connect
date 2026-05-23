@@ -4,13 +4,12 @@ import { useApp } from "@/contexts/AppContext";
 import { Button } from "@/components/ui/button";
 import { ArrowRight, Sparkles, Zap, Layers, MessageSquare, Compass } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
-import type { Database } from "@/integrations/supabase/types";
 import { HomePihlHost } from "@/components/HomePihlHost";
 import { Skeleton } from "@/components/ui/skeleton";
-import { NewsFreshness } from "@/components/NewsFreshness";
+import { NewsCard } from "@/components/NewsCard";
+import { NewsDetailDialog } from "@/components/NewsDetailDialog";
 import { subscribeContentRefresh } from "@/lib/contentRefresh";
-
-type NewsPost = Database["public"]["Tables"]["news_posts"]["Row"];
+import { NEWS_POST_SELECT, type NewsPost } from "@/lib/news";
 
 export const Route = createFileRoute("/")({ component: Index });
 
@@ -18,12 +17,14 @@ function Index() {
   const { t, mode } = useApp();
   const [latestNews, setLatestNews] = useState<NewsPost[]>([]);
   const [newsLoading, setNewsLoading] = useState(true);
+  const [selectedPost, setSelectedPost] = useState<NewsPost | null>(null);
+  const [detailOpen, setDetailOpen] = useState(false);
 
   const loadLatestNews = useCallback(async () => {
     setNewsLoading(true);
     const { data, error } = await supabase
       .from("news_posts")
-      .select("id,title,summary,content,source,url,published_at,created_at,updated_at")
+      .select(NEWS_POST_SELECT)
       .order("published_at", { ascending: false })
       .limit(4);
 
@@ -36,6 +37,11 @@ function Index() {
   }, [loadLatestNews]);
 
   useEffect(() => subscribeContentRefresh("news", () => void loadLatestNews()), [loadLatestNews]);
+
+  function openPost(post: NewsPost) {
+    setSelectedPost(post);
+    setDetailOpen(true);
+  }
 
   return (
     <div>
@@ -144,23 +150,11 @@ function Index() {
         ) : (
           <div className="grid gap-4 sm:grid-cols-2">
             {latestNews.map((post) => (
-              <article key={post.id} className="rounded-2xl border bg-card p-5 shadow-card">
-                <NewsFreshness publishedAt={post.published_at} source={post.source} />
-                <h3 className="mt-2 line-clamp-2 text-lg font-semibold">{post.title}</h3>
-                <p className="mt-2 line-clamp-3 text-sm text-muted-foreground">
-                  {mode === "pro" ? post.content : post.summary}
-                </p>
-                <div className="mt-4">
-                  <Button asChild variant="outline" size="sm">
-                    <a href={post.url} target="_blank" rel="noreferrer noopener">
-                      Read more
-                    </a>
-                  </Button>
-                </div>
-              </article>
+              <NewsCard key={post.id} post={post} onOpen={openPost} />
             ))}
           </div>
         )}
+        <NewsDetailDialog post={selectedPost} open={detailOpen} onOpenChange={setDetailOpen} />
       </section>
     </div>
   );
