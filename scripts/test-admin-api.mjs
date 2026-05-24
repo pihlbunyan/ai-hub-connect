@@ -62,7 +62,7 @@ async function main() {
     "/api/admin/generate-news",
     "/api/admin/generate-prompts",
   ]) {
-    const unauth = await postAdmin(path, "", { mode: "discover" });
+    const unauth = await postAdmin(path, "", { proEnabled: false });
     console.log(`${path} (no auth): ${unauth.status} ${JSON.stringify(unauth.data)}`);
     if (unauth.status !== 401) {
       console.error("Expected 401 without auth");
@@ -133,9 +133,9 @@ async function main() {
   }
 
   const routes = [
-    { path: "/api/admin/generate-tools", body: { mode: "discover" }, label: "tools" },
+    { path: "/api/admin/generate-tools", body: { proEnabled: false }, label: "tools" },
     { path: "/api/admin/generate-news", body: undefined, label: "news" },
-    { path: "/api/admin/generate-prompts", body: { mode: "discover" }, label: "prompts" },
+    { path: "/api/admin/generate-prompts", body: { proEnabled: false }, label: "prompts" },
   ];
 
   for (const route of routes) {

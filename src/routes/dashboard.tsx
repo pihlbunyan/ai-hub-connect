@@ -2,6 +2,7 @@ import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useApp } from "@/contexts/AppContext";
+import { depthCopy } from "@/lib/copy";
 import { ToolCard, type Tool } from "@/components/ToolCard";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
@@ -13,7 +14,7 @@ export const Route = createFileRoute("/dashboard")({ component: Dashboard });
 type ChatRow = { id: string; prompt: string; models_used: string[]; created_at: string };
 
 function Dashboard() {
-  const { t, user, loading, mode } = useApp();
+  const { t, user, loading, proEnabled } = useApp();
   const nav = useNavigate();
   const [favs, setFavs] = useState<Tool[]>([]);
   const [favIds, setFavIds] = useState<Set<string>>(new Set());
@@ -47,7 +48,7 @@ function Dashboard() {
       .select("id, prompt, models_used, created_at")
       .eq("user_id", user.id)
       .order("created_at", { ascending: false })
-      .limit(mode === "pro" ? 8 : 5);
+      .limit(proEnabled ? 8 : 5);
     setChats((chatsData as ChatRow[] | null) ?? []);
 
     const { data: allTools } = await supabase
@@ -58,7 +59,7 @@ function Dashboard() {
     const favoriteCategories = new Set(nextFavs.map((f) => f.category));
     const visibleForMode = (allTools ?? []).filter((tool) => {
       if (tool.audience === "both") return true;
-      return mode === "pro" ? tool.audience === "pro" : tool.audience === "discover";
+      return proEnabled ? tool.audience === "pro" : tool.audience === "discover";
     });
 
     const recommended = visibleForMode
@@ -69,7 +70,7 @@ function Dashboard() {
         if (aBoost !== bBoost) return bBoost - aBoost;
         return Number(b.rating) - Number(a.rating);
       })
-      .slice(0, mode === "pro" ? 4 : 3);
+      .slice(0, proEnabled ? 4 : 3);
 
     setRecs(recommended);
     } finally {
@@ -84,7 +85,7 @@ function Dashboard() {
     window.addEventListener("focus", onFocus);
     return () => window.removeEventListener("focus", onFocus);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [user, mode]);
+  }, [user, proEnabled]);
 
   if (!user) return null;
 
@@ -132,9 +133,7 @@ function Dashboard() {
         <div>
           <h1 className="font-display text-4xl font-bold">{t.dashboardTitle}</h1>
           <p className="mt-1 text-muted-foreground">
-            {mode === "pro"
-              ? "Your command center for saved tools, active workflows, and model activity."
-              : "Your personal home base for saved tools and recent AI activity."}
+            {depthCopy(t.dashboardSubtitle, t.dashboardSubtitlePro, proEnabled)}
           </p>
         </div>
         <Button asChild><Link to="/chat"><MessageSquare className="h-4 w-4" /> {t.navChat}</Link></Button>
@@ -159,11 +158,9 @@ function Dashboard() {
         <h2 className="mb-4 flex items-center gap-2 text-lg font-semibold"><Star className="h-4 w-4" /> Favorites</h2>
         {favs.length === 0 ? (
           <div className="rounded-2xl border border-dashed bg-card/50 p-10 text-center text-muted-foreground">
-            <p>{mode === "pro" ? "You have not saved any tools yet." : "You haven't saved any tools yet."}</p>
+            <p>{depthCopy(t.dashboardEmpty, t.dashboardEmptyPro, proEnabled)}</p>
             <p className="mt-1 text-xs">
-              {mode === "pro"
-                ? "Pin tools from the directory to build a quick-access working set."
-                : "Save tools you like and they'll show up here for quick access."}
+              {depthCopy(t.dashboardFavHint, t.dashboardFavHintPro, proEnabled)}
             </p>
             <Button asChild className="mt-4">
               <Link to="/tools">Browse tools</Link>
@@ -181,9 +178,7 @@ function Dashboard() {
       <section className="mb-12">
         <h2 className="mb-1 flex items-center gap-2 text-lg font-semibold"><Sparkles className="h-4 w-4" /> Recommended</h2>
         <p className="mb-4 text-sm text-muted-foreground">
-          {mode === "pro"
-            ? "Based on your mode and saved categories, prioritized for advanced workflows."
-            : "Based on your mode and saved interests, chosen for clear practical value."}
+          {depthCopy(t.dashboardRecsHint, t.dashboardRecsHintPro, proEnabled)}
         </p>
         <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
           {recs.length === 0 ? (

@@ -1,8 +1,10 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { generateTools } from "@/lib/agents";
-import { requireAdmin, sanitizeAdminMode } from "@/lib/adminAuth";
+import { requireAdmin, sanitizeAdminProEnabled } from "@/lib/adminAuth";
 
 type GenerateToolsBody = {
+  proEnabled?: boolean;
+  /** @deprecated Use proEnabled */
   mode?: "pro" | "discover";
 };
 
@@ -15,8 +17,8 @@ export const Route = createFileRoute("/api/admin/generate-tools")({
 
         try {
           const body = (await request.json().catch(() => ({}))) as GenerateToolsBody;
-          const mode = sanitizeAdminMode(body.mode);
-          const result = await generateTools(auth.supabase, auth.userId, 8, mode);
+          const proEnabled = sanitizeAdminProEnabled(body.proEnabled, body.mode);
+          const result = await generateTools(auth.supabase, auth.userId, 8, proEnabled);
 
           return Response.json({
             success: true,
@@ -26,7 +28,7 @@ export const Route = createFileRoute("/api/admin/generate-tools")({
             skipped: result.skipped,
             safetyRejected: result.safetyRejected,
             created: result.added,
-            mode,
+            proEnabled,
           });
         } catch (error) {
           console.error("[api/admin/generate-tools]", error);

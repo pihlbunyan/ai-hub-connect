@@ -12,7 +12,7 @@ import { BrandName } from "@/components/BrandName";
 export const Route = createFileRoute("/auth")({ component: AuthPage });
 
 function AuthPage() {
-  const { t, mode, user } = useApp();
+  const { t, proEnabled, user } = useApp();
   const nav = useNavigate();
   const [tab, setTab] = useState<"signin" | "signup">("signin");
   const [email, setEmail] = useState("");
@@ -74,7 +74,7 @@ function AuthPage() {
     <div className="mx-auto flex min-h-[calc(100vh-8rem)] max-w-md items-center px-6 py-12">
       <div className="w-full rounded-2xl border bg-card p-8 shadow-card">
         <h1 className="font-display text-2xl font-bold">
-          {mode === "pro" ? (
+          {proEnabled ? (
             <>
               <BrandName /> access
             </>

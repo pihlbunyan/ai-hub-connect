@@ -24,7 +24,7 @@ const DEFAULT_PRO =
   "Pihl host online. Describe your objective and I will route you to precise tools, topics, and execution paths.";
 
 export function SiteHostWidget() {
-  const { mode } = useApp();
+  const { proEnabled } = useApp();
   const { pathname } = useLocation();
   const isHome = pathname === "/";
   if (isHome) return null;
@@ -32,10 +32,10 @@ export function SiteHostWidget() {
   const [input, setInput] = useState("");
   const [busy, setBusy] = useState(false);
   const [messages, setMessages] = useState<HostMessage[]>([
-    { role: "assistant", text: mode === "pro" ? DEFAULT_PRO : DEFAULT_DISCOVER },
+    { role: "assistant", text: proEnabled ? DEFAULT_PRO : DEFAULT_DISCOVER },
   ]);
 
-  const placeholder = mode === "pro" ? "Ask for workflow guidance..." : "Ask me what you are trying to do...";
+  const placeholder = proEnabled ? "Ask for workflow guidance..." : "Ask me what you are trying to do...";
 
   const panelClasses = cn(
     "fixed bottom-4 right-4 z-50 w-[380px] max-w-[calc(100vw-2rem)] rounded-2xl border bg-card shadow-card transition-all",
@@ -76,17 +76,16 @@ export function SiteHostWidget() {
           {
             label: "Open Chat with Prompt",
             type: "chatPrefill",
-            prompt:
-              mode === "pro"
-                ? `Help me with this goal in a practical, technical way: ${q}`
-                : `Can you help me with this in simple steps: ${q}`,
+            prompt: proEnabled
+              ? `Help me with this goal in a practical, technical way: ${q}`
+              : `Can you help me with this in simple steps: ${q}`,
           },
           { label: "Explore Topics", type: "topicsIndex" },
         );
       }
-      return { links: links.slice(0, mode === "pro" ? 4 : 3), hasStrongMatch, normalized: query };
+      return { links: links.slice(0, proEnabled ? 4 : 3), hasStrongMatch, normalized: query };
     },
-    [mode],
+    [proEnabled],
   );
 
   async function sendMessage() {
@@ -99,20 +98,19 @@ export function SiteHostWidget() {
       const res = await fetch("/api/public/site-host", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ prompt: text, mode }),
+        body: JSON.stringify({ prompt: text, proEnabled }),
       });
       const data = await res.json();
       const reply =
         res.ok && data?.content
           ? String(data.content)
-          : mode === "pro"
+          : proEnabled
             ? "I could not reach the model right now. Use these direct routes to continue your workflow."
             : "I had a connection hiccup, but I can still guide you with one-click links below.";
       const intent = linkSuggestions(text);
-      const fallbackText =
-        mode === "pro"
-          ? "No dedicated page for that topic yet. Best path is our main chat aggregator where I can generate detailed plans using multiple models."
-          : `Great question! We don't have a dedicated page for ${intent.normalized} yet, but I can help you right now in the main chat with custom ideas.`;
+      const fallbackText = proEnabled
+        ? "No dedicated page for that topic yet. Best path is our main chat aggregator where I can generate detailed plans using multiple models."
+        : `Great question! We don't have a dedicated page for ${intent.normalized} yet, but I can help you right now in the main chat with custom ideas.`;
       setMessages((prev) => [
         ...prev,
         {
@@ -123,10 +121,9 @@ export function SiteHostWidget() {
       ]);
     } catch {
       const intent = linkSuggestions(text);
-      const fallbackText =
-        mode === "pro"
-          ? "No dedicated page for that topic yet. Best path is our main chat aggregator where I can generate detailed plans using multiple models."
-          : `Great question! We don't have a dedicated page for ${intent.normalized} yet, but I can help you right now in the main chat with custom ideas.`;
+      const fallbackText = proEnabled
+        ? "No dedicated page for that topic yet. Best path is our main chat aggregator where I can generate detailed plans using multiple models."
+        : `Great question! We don't have a dedicated page for ${intent.normalized} yet, but I can help you right now in the main chat with custom ideas.`;
       setMessages((prev) => [
         ...prev,
         {
@@ -148,7 +145,7 @@ export function SiteHostWidget() {
             <Bot className="h-4 w-4 text-primary" />
             <div>
               <p className="text-sm font-semibold">Pihl - Your AI Guide</p>
-              <p className="text-[11px] text-muted-foreground">{mode === "pro" ? "Pro guide" : "Discover guide"}</p>
+              <p className="text-[11px] text-muted-foreground">{proEnabled ? "Pro guide" : "Site guide"}</p>
             </div>
           </div>
           <Button variant="ghost" size="icon" onClick={() => setOpen(false)} aria-label="Close Pihl">
@@ -195,15 +192,15 @@ export function SiteHostWidget() {
 
       <Button
         onClick={() => setOpen((v) => !v)}
-        size={mode === "discover" ? "lg" : "icon"}
+        size={!proEnabled ? "lg" : "icon"}
         className={cn(
           "fixed bottom-4 right-4 z-40 shadow-lg",
-          mode === "discover"
+          !proEnabled
             ? "h-12 rounded-full bg-gradient-to-r from-primary to-accent px-5 text-primary-foreground"
             : "h-10 w-10 rounded-full bg-card text-foreground",
         )}
       >
-        {mode === "discover" ? (
+        {!proEnabled ? (
           <>
             <Sparkles className="h-4 w-4" />
             Ask Pihl

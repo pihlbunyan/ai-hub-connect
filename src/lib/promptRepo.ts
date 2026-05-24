@@ -1,4 +1,4 @@
-import type { Mode } from "@/lib/copy";
+import { pickDepthLabel } from "@/lib/depth";
 
 export const PROMPT_CATEGORIES = [
   "Content",
@@ -242,10 +242,10 @@ export const PROMPTS: PromptItem[] = [
   },
 ];
 
-export function getPromptForMode(item: PromptItem, mode: Mode) {
-  return mode === "pro" ? item.proPrompt : item.discoverPrompt;
+export function getPromptForDepth(item: PromptItem, proEnabled: boolean) {
+  return pickDepthLabel(item.discoverPrompt, item.proPrompt, proEnabled);
 }
 
-export function getPromptSupportText(item: PromptItem, mode: Mode) {
-  return mode === "pro" ? item.proNotes : item.discoverHelp;
+export function getPromptSupportText(item: PromptItem, proEnabled: boolean) {
+  return pickDepthLabel(item.discoverHelp, item.proNotes, proEnabled);
 }

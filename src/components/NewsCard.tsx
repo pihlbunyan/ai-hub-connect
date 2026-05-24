@@ -1,6 +1,7 @@
 import { cn } from "@/lib/utils";
 import type { NewsPost } from "@/lib/news";
 import { useApp } from "@/contexts/AppContext";
+import { pickNewsBody } from "@/lib/depth";
 import { NewsFreshness } from "@/components/NewsFreshness";
 import { NewsImage } from "@/components/NewsImage";
 
@@ -14,8 +15,8 @@ type NewsCardProps = {
 };
 
 export function NewsCard({ post, className, onOpen, variant = "default", isActive = false }: NewsCardProps) {
-  const { mode } = useApp();
-  const preview = mode === "pro" ? post.content : post.summary;
+  const { proEnabled } = useApp();
+  const preview = pickNewsBody(post, proEnabled).body;
   const isList = variant === "list";
 
   return (

@@ -17,13 +17,16 @@ import { Route as ChatRouteImport } from './routes/chat'
 import { Route as AuthRouteImport } from './routes/auth'
 import { Route as AdminRouteImport } from './routes/admin'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as TopicsIndexRouteImport } from './routes/topics.index'
 import { Route as ToolsIndexRouteImport } from './routes/tools.index'
 import { Route as TopicsSlugRouteImport } from './routes/topics.$slug'
 import { Route as ToolsSlugRouteImport } from './routes/tools.$slug'
 import { Route as ApiPublicToolDetailRouteImport } from './routes/api.public.tool-detail'
 import { Route as ApiPublicSiteHostRouteImport } from './routes/api.public.site-host'
 import { Route as ApiPublicChatAggregateRouteImport } from './routes/api.public.chat-aggregate'
+import { Route as ApiAdminGenerateTrendingTopicsRouteImport } from './routes/api/admin/generate-trending-topics'
 import { Route as ApiAdminGenerateToolsRouteImport } from './routes/api/admin/generate-tools'
+import { Route as ApiAdminGenerateToolNewsRouteImport } from './routes/api/admin/generate-tool-news'
 import { Route as ApiAdminGeneratePromptsRouteImport } from './routes/api/admin/generate-prompts'
 import { Route as ApiAdminGenerateOfficialUpdatesRouteImport } from './routes/api/admin/generate-official-updates'
 import { Route as ApiAdminGenerateNewsRouteImport } from './routes/api/admin/generate-news'
@@ -68,6 +71,11 @@ const IndexRoute = IndexRouteImport.update({
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const TopicsIndexRoute = TopicsIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => TopicsRoute,
+} as any)
 const ToolsIndexRoute = ToolsIndexRouteImport.update({
   id: '/tools/',
   path: '/tools/',
@@ -98,11 +106,23 @@ const ApiPublicChatAggregateRoute = ApiPublicChatAggregateRouteImport.update({
   path: '/api/public/chat-aggregate',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiAdminGenerateTrendingTopicsRoute =
+  ApiAdminGenerateTrendingTopicsRouteImport.update({
+    id: '/api/admin/generate-trending-topics',
+    path: '/api/admin/generate-trending-topics',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 const ApiAdminGenerateToolsRoute = ApiAdminGenerateToolsRouteImport.update({
   id: '/api/admin/generate-tools',
   path: '/api/admin/generate-tools',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiAdminGenerateToolNewsRoute =
+  ApiAdminGenerateToolNewsRouteImport.update({
+    id: '/api/admin/generate-tool-news',
+    path: '/api/admin/generate-tool-news',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 const ApiAdminGeneratePromptsRoute = ApiAdminGeneratePromptsRouteImport.update({
   id: '/api/admin/generate-prompts',
   path: '/api/admin/generate-prompts',
@@ -132,10 +152,13 @@ export interface FileRoutesByFullPath {
   '/tools/$slug': typeof ToolsSlugRoute
   '/topics/$slug': typeof TopicsSlugRoute
   '/tools/': typeof ToolsIndexRoute
+  '/topics/': typeof TopicsIndexRoute
   '/api/admin/generate-news': typeof ApiAdminGenerateNewsRoute
   '/api/admin/generate-official-updates': typeof ApiAdminGenerateOfficialUpdatesRoute
   '/api/admin/generate-prompts': typeof ApiAdminGeneratePromptsRoute
+  '/api/admin/generate-tool-news': typeof ApiAdminGenerateToolNewsRoute
   '/api/admin/generate-tools': typeof ApiAdminGenerateToolsRoute
+  '/api/admin/generate-trending-topics': typeof ApiAdminGenerateTrendingTopicsRoute
   '/api/public/chat-aggregate': typeof ApiPublicChatAggregateRoute
   '/api/public/site-host': typeof ApiPublicSiteHostRoute
   '/api/public/tool-detail': typeof ApiPublicToolDetailRoute
@@ -148,14 +171,16 @@ export interface FileRoutesByTo {
   '/dashboard': typeof DashboardRoute
   '/news': typeof NewsRoute
   '/prompts': typeof PromptsRoute
-  '/topics': typeof TopicsRouteWithChildren
   '/tools/$slug': typeof ToolsSlugRoute
   '/topics/$slug': typeof TopicsSlugRoute
   '/tools': typeof ToolsIndexRoute
+  '/topics': typeof TopicsIndexRoute
   '/api/admin/generate-news': typeof ApiAdminGenerateNewsRoute
   '/api/admin/generate-official-updates': typeof ApiAdminGenerateOfficialUpdatesRoute
   '/api/admin/generate-prompts': typeof ApiAdminGeneratePromptsRoute
+  '/api/admin/generate-tool-news': typeof ApiAdminGenerateToolNewsRoute
   '/api/admin/generate-tools': typeof ApiAdminGenerateToolsRoute
+  '/api/admin/generate-trending-topics': typeof ApiAdminGenerateTrendingTopicsRoute
   '/api/public/chat-aggregate': typeof ApiPublicChatAggregateRoute
   '/api/public/site-host': typeof ApiPublicSiteHostRoute
   '/api/public/tool-detail': typeof ApiPublicToolDetailRoute
@@ -173,10 +198,13 @@ export interface FileRoutesById {
   '/tools/$slug': typeof ToolsSlugRoute
   '/topics/$slug': typeof TopicsSlugRoute
   '/tools/': typeof ToolsIndexRoute
+  '/topics/': typeof TopicsIndexRoute
   '/api/admin/generate-news': typeof ApiAdminGenerateNewsRoute
   '/api/admin/generate-official-updates': typeof ApiAdminGenerateOfficialUpdatesRoute
   '/api/admin/generate-prompts': typeof ApiAdminGeneratePromptsRoute
+  '/api/admin/generate-tool-news': typeof ApiAdminGenerateToolNewsRoute
   '/api/admin/generate-tools': typeof ApiAdminGenerateToolsRoute
+  '/api/admin/generate-trending-topics': typeof ApiAdminGenerateTrendingTopicsRoute
   '/api/public/chat-aggregate': typeof ApiPublicChatAggregateRoute
   '/api/public/site-host': typeof ApiPublicSiteHostRoute
   '/api/public/tool-detail': typeof ApiPublicToolDetailRoute
@@ -195,10 +223,13 @@ export interface FileRouteTypes {
     | '/tools/$slug'
     | '/topics/$slug'
     | '/tools/'
+    | '/topics/'
     | '/api/admin/generate-news'
     | '/api/admin/generate-official-updates'
     | '/api/admin/generate-prompts'
+    | '/api/admin/generate-tool-news'
     | '/api/admin/generate-tools'
+    | '/api/admin/generate-trending-topics'
     | '/api/public/chat-aggregate'
     | '/api/public/site-host'
     | '/api/public/tool-detail'
@@ -211,14 +242,16 @@ export interface FileRouteTypes {
     | '/dashboard'
     | '/news'
     | '/prompts'
-    | '/topics'
     | '/tools/$slug'
     | '/topics/$slug'
     | '/tools'
+    | '/topics'
     | '/api/admin/generate-news'
     | '/api/admin/generate-official-updates'
     | '/api/admin/generate-prompts'
+    | '/api/admin/generate-tool-news'
     | '/api/admin/generate-tools'
+    | '/api/admin/generate-trending-topics'
     | '/api/public/chat-aggregate'
     | '/api/public/site-host'
     | '/api/public/tool-detail'
@@ -235,10 +268,13 @@ export interface FileRouteTypes {
     | '/tools/$slug'
     | '/topics/$slug'
     | '/tools/'
+    | '/topics/'
     | '/api/admin/generate-news'
     | '/api/admin/generate-official-updates'
     | '/api/admin/generate-prompts'
+    | '/api/admin/generate-tool-news'
     | '/api/admin/generate-tools'
+    | '/api/admin/generate-trending-topics'
     | '/api/public/chat-aggregate'
     | '/api/public/site-host'
     | '/api/public/tool-detail'
@@ -258,7 +294,9 @@ export interface RootRouteChildren {
   ApiAdminGenerateNewsRoute: typeof ApiAdminGenerateNewsRoute
   ApiAdminGenerateOfficialUpdatesRoute: typeof ApiAdminGenerateOfficialUpdatesRoute
   ApiAdminGeneratePromptsRoute: typeof ApiAdminGeneratePromptsRoute
+  ApiAdminGenerateToolNewsRoute: typeof ApiAdminGenerateToolNewsRoute
   ApiAdminGenerateToolsRoute: typeof ApiAdminGenerateToolsRoute
+  ApiAdminGenerateTrendingTopicsRoute: typeof ApiAdminGenerateTrendingTopicsRoute
   ApiPublicChatAggregateRoute: typeof ApiPublicChatAggregateRoute
   ApiPublicSiteHostRoute: typeof ApiPublicSiteHostRoute
   ApiPublicToolDetailRoute: typeof ApiPublicToolDetailRoute
@@ -322,6 +360,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/topics/': {
+      id: '/topics/'
+      path: '/'
+      fullPath: '/topics/'
+      preLoaderRoute: typeof TopicsIndexRouteImport
+      parentRoute: typeof TopicsRoute
+    }
     '/tools/': {
       id: '/tools/'
       path: '/tools'
@@ -364,11 +409,25 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiPublicChatAggregateRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/admin/generate-trending-topics': {
+      id: '/api/admin/generate-trending-topics'
+      path: '/api/admin/generate-trending-topics'
+      fullPath: '/api/admin/generate-trending-topics'
+      preLoaderRoute: typeof ApiAdminGenerateTrendingTopicsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/admin/generate-tools': {
       id: '/api/admin/generate-tools'
       path: '/api/admin/generate-tools'
       fullPath: '/api/admin/generate-tools'
       preLoaderRoute: typeof ApiAdminGenerateToolsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/admin/generate-tool-news': {
+      id: '/api/admin/generate-tool-news'
+      path: '/api/admin/generate-tool-news'
+      fullPath: '/api/admin/generate-tool-news'
+      preLoaderRoute: typeof ApiAdminGenerateToolNewsRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/api/admin/generate-prompts': {
@@ -397,10 +456,12 @@ declare module '@tanstack/react-router' {
 
 interface TopicsRouteChildren {
   TopicsSlugRoute: typeof TopicsSlugRoute
+  TopicsIndexRoute: typeof TopicsIndexRoute
 }
 
 const TopicsRouteChildren: TopicsRouteChildren = {
   TopicsSlugRoute: TopicsSlugRoute,
+  TopicsIndexRoute: TopicsIndexRoute,
 }
 
 const TopicsRouteWithChildren =
@@ -420,7 +481,9 @@ const rootRouteChildren: RootRouteChildren = {
   ApiAdminGenerateNewsRoute: ApiAdminGenerateNewsRoute,
   ApiAdminGenerateOfficialUpdatesRoute: ApiAdminGenerateOfficialUpdatesRoute,
   ApiAdminGeneratePromptsRoute: ApiAdminGeneratePromptsRoute,
+  ApiAdminGenerateToolNewsRoute: ApiAdminGenerateToolNewsRoute,
   ApiAdminGenerateToolsRoute: ApiAdminGenerateToolsRoute,
+  ApiAdminGenerateTrendingTopicsRoute: ApiAdminGenerateTrendingTopicsRoute,
   ApiPublicChatAggregateRoute: ApiPublicChatAggregateRoute,
   ApiPublicSiteHostRoute: ApiPublicSiteHostRoute,
   ApiPublicToolDetailRoute: ApiPublicToolDetailRoute,

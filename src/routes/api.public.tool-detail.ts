@@ -86,7 +86,7 @@ export const Route = createFileRoute("/api/public/tool-detail")({
 
           if (!canRunToolDetailGeneration()) {
             const { message, status } = sanitizeToolDetailApiError(
-              new Error("SUPABASE_SERVICE_ROLE_KEY or GROK_API_KEY missing"),
+              new Error("SUPABASE_SERVICE_ROLE_KEY or ANTHROPIC_API_KEY missing"),
             );
             return Response.json(
               {

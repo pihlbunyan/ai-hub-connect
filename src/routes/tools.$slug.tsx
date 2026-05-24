@@ -3,33 +3,46 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import type { Database } from "@/integrations/supabase/types";
 import { useApp } from "@/contexts/AppContext";
+import { depthCopy } from "@/lib/copy";
 import { Button } from "@/components/ui/button";
 import { ToolDetailSections } from "@/components/ToolDetailSections";
 import { ToolLogo } from "@/components/ToolLogo";
-import { ExternalLink, ArrowLeft, Heart, MessageSquarePlus, RefreshCw } from "lucide-react";
+import {
+  ArrowLeft,
+  ExternalLink,
+  Heart,
+  MessageSquarePlus,
+  RefreshCw,
+} from "lucide-react";
+import { queryOfficialPostsForTool } from "@/lib/officialPosts";
+import type { OfficialSocialPost } from "@/lib/officialUpdates";
+import { subscribeContentRefresh } from "@/lib/contentRefresh";
 import { toast } from "sonner";
+import { ToolOfficialUpdatesSection } from "@/components/ToolOfficialUpdatesSection";
 import {
   formatCostTierLabel,
   formatDetailLastUpdated,
   isToolDetailProfileStale,
   parseToolDetailProfile,
-  pickToolDetailForMode,
+  pickToolDetailForDepth,
   type ToolDetailProfile,
   type ToolDetailView,
 } from "@/lib/toolDetailProfile";
 import { loadToolDetailPage } from "@/lib/toolDetailPage.server";
 import { cn } from "@/lib/utils";
+import { pickToolSummary, pickToolTags } from "@/lib/depth";
 
 type Tool = Database["public"]["Tables"]["tools"]["Row"];
 
 export const Route = createFileRoute("/tools/$slug")({
   loader: ({ params }) => loadToolDetailPage(params.slug),
+  staleTime: 0,
   component: ToolDetail,
 });
 
-function buildFallbackDetail(tool: Tool, mode: "pro" | "discover"): ToolDetailView {
+function buildFallbackDetail(tool: Tool, proEnabled: boolean): ToolDetailView {
   const overview =
-    mode === "pro"
+    proEnabled
       ? [tool.pro_summary, tool.description_long, tool.description_short].filter(Boolean).join("\n\n")
       : [tool.discover_summary, tool.description_short].filter(Boolean).join("\n\n");
 
@@ -53,7 +66,7 @@ function buildFallbackDetail(tool: Tool, mode: "pro" | "discover"): ToolDetailVi
 function ToolDetail() {
   const { slug } = Route.useParams();
   const loaderData = Route.useLoaderData();
-  const { t, mode, user } = useApp();
+  const { t, proEnabled, user } = useApp();
   const navigate = useNavigate();
 
   const [tool, setTool] = useState(loaderData.tool);
@@ -71,6 +84,7 @@ function ToolDetail() {
   const [manualRefreshing, setManualRefreshing] = useState(false);
   const [favorite, setFavorite] = useState(false);
   const [favLoading, setFavLoading] = useState(false);
+  const [officialPosts, setOfficialPosts] = useState<OfficialSocialPost[]>(loaderData.officialPosts);
 
   useEffect(() => {
     setTool(loaderData.tool);
@@ -82,6 +96,7 @@ function ToolDetail() {
         loaderData.refreshAvailable &&
         (loaderData.stale || !loaderData.profile),
     );
+    setOfficialPosts(loaderData.officialPosts);
   }, [loaderData]);
 
   useEffect(() => {
@@ -100,6 +115,9 @@ function ToolDetail() {
       setBackgroundRefreshing(
         loaderData.refreshAvailable && (!profile || isToolDetailProfileStale(profile)),
       );
+
+      const posts = await queryOfficialPostsForTool(supabase, data.slug, 4, data.vendor);
+      if (!cancelled) setOfficialPosts(posts);
     })();
 
     return () => {
@@ -108,10 +126,10 @@ function ToolDetail() {
   }, [loaderData.tool, loaderData.refreshAvailable, slug]);
 
   const detailView = useMemo(() => {
-    if (detailProfile) return pickToolDetailForMode(detailProfile, mode);
-    if (tool) return buildFallbackDetail(tool, mode);
+    if (detailProfile) return pickToolDetailForDepth(detailProfile, proEnabled);
+    if (tool) return buildFallbackDetail(tool, proEnabled);
     return null;
-  }, [detailProfile, tool, mode]);
+  }, [detailProfile, tool, proEnabled]);
 
   const lastUpdatedLabel = formatDetailLastUpdated(generatedAt);
 
@@ -162,6 +180,13 @@ function ToolDetail() {
   }, [backgroundRefreshing, tool, refreshAvailable, pollForFreshProfile]);
 
   useEffect(() => {
+    if (!tool?.slug) return;
+    return subscribeContentRefresh("official-updates", () => {
+      void queryOfficialPostsForTool(supabase, tool.slug, 4, tool.vendor).then(setOfficialPosts);
+    });
+  }, [tool?.slug]);
+
+  useEffect(() => {
     if (!user || !tool?.id) {
       setFavorite(false);
       return;
@@ -202,12 +227,12 @@ function ToolDetail() {
     } satisfies Tool;
   }, [tool, slug]);
 
-  const summary = mode === "pro" ? safeTool.pro_summary : safeTool.discover_summary;
-  const tags = (mode === "pro" ? safeTool.pro_tags : safeTool.discover_tags) ?? [];
+  const summary = pickToolSummary(safeTool, proEnabled);
+  const tags = pickToolTags(safeTool, proEnabled);
   const costTierLabel = formatCostTierLabel(safeTool.cost_tier);
 
   const chatPrompt =
-    mode === "pro"
+    proEnabled
       ? `Tell me about ${safeTool.name} and how to use it best. Include practical workflows, tradeoffs, and advanced tips.`
       : `Tell me about ${safeTool.name} and how to use it best. Keep it clear and practical for getting started.`;
 
@@ -277,7 +302,7 @@ function ToolDetail() {
     Boolean(detailProfile) && isToolDetailProfileStale(detailProfile) && backgroundRefreshing;
 
   return (
-    <div className="mx-auto max-w-4xl px-6 py-12">
+    <div className="mx-auto max-w-6xl px-6 py-12 lg:max-w-7xl">
       <Link
         to="/tools"
         className="mb-6 inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground"
@@ -285,6 +310,8 @@ function ToolDetail() {
         <ArrowLeft className="h-4 w-4" /> {t.navDirectory}
       </Link>
 
+      <div className="flex flex-col gap-8 lg:grid lg:grid-cols-[minmax(0,1fr)_minmax(260px,300px)] lg:items-start xl:grid-cols-[minmax(0,1fr)_320px] xl:gap-10">
+      <main className="min-w-0 space-y-8">
       <div className="rounded-3xl border bg-card p-6 shadow-card sm:p-8">
         {!tool && (
           <div className="mb-6 rounded-xl border border-dashed bg-muted/30 px-4 py-3 text-sm text-muted-foreground">
@@ -332,7 +359,7 @@ function ToolDetail() {
               <span className="rounded-full border bg-muted/40 px-2 py-0.5 text-xs font-medium capitalize">
                 {costTierLabel}
               </span>
-              {mode === "pro" && safeTool.safety_score != null && (
+              {proEnabled && safeTool.safety_score != null && (
                 <span className="rounded-full bg-sky-500/15 px-2 py-0.5 text-xs font-medium text-sky-700 dark:text-sky-300">
                   Safety {safeTool.safety_score}/10
                 </span>
@@ -357,11 +384,11 @@ function ToolDetail() {
                 search: { prompt: chatPrompt } as never,
               })
             }
-            size={mode === "discover" ? "lg" : "default"}
+            size={proEnabled ? "default" : "lg"}
             className="gap-2 shadow-sm"
           >
             <MessageSquarePlus className="h-4 w-4" />
-            {mode === "pro" ? "Analyze with Grok" : "Discover with Grok"}
+            {depthCopy(t.toolDetailAskGrok, t.toolDetailAnalyzeGrok, proEnabled)}
           </Button>
           <Button
             type="button"
@@ -378,7 +405,7 @@ function ToolDetail() {
         <p
           className={cn(
             "mt-5 text-foreground/90",
-            mode === "discover" ? "text-base leading-relaxed" : "text-sm leading-relaxed",
+            proEnabled ? "text-sm leading-relaxed" : "text-base leading-relaxed",
           )}
         >
           {summary || safeTool.description_short}
@@ -398,17 +425,33 @@ function ToolDetail() {
         )}
       </div>
 
-      <ToolDetailSections
-        detail={detailView}
-        loading={detailLoading && Boolean(tool) && refreshAvailable}
-        costTierLabel={costTierLabel}
+      {proEnabled ? (
+        <ToolDetailSections
+          detail={detailView}
+          loading={detailLoading && Boolean(tool) && refreshAvailable}
+          costTierLabel={costTierLabel}
+          className="mt-0"
+        />
+      ) : (
+        <p className="rounded-2xl border border-dashed bg-muted/20 px-4 py-3 text-sm text-muted-foreground">
+          {t.toolDetailProSectionsHint}
+        </p>
+      )}
+
+      </main>
+
+      <ToolOfficialUpdatesSection
+        toolName={safeTool.name}
+        posts={officialPosts}
+        className="min-w-0 lg:order-none"
       />
+      </div>
     </div>
   );
 }
 
 function AudiencePill({ audience }: { audience: Tool["audience"] }) {
-  const { mode } = useApp();
+  const { proEnabled } = useApp();
   if (audience === "both") {
     return (
       <span className="rounded-full bg-muted/50 px-2 py-0.5 text-xs text-muted-foreground">All audiences</span>
@@ -417,13 +460,13 @@ function AudiencePill({ audience }: { audience: Tool["audience"] }) {
   if (audience === "pro") {
     return (
       <span className="rounded-full bg-pro/15 px-2 py-0.5 text-xs text-pro">
-        {mode === "pro" ? "Pro-focused" : "Advanced"}
+        {proEnabled ? "Pro-focused" : "Advanced"}
       </span>
     );
   }
   return (
     <span className="rounded-full bg-discover/25 px-2 py-0.5 text-xs text-discover-foreground">
-      {mode === "pro" ? "Discover-friendly" : "Beginner-friendly"}
+      {proEnabled ? "General-friendly" : "Beginner-friendly"}
     </span>
   );
 }

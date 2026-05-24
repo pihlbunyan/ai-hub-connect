@@ -17,11 +17,12 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { AlertCircle, RefreshCw, Search } from "lucide-react";
 import { toast } from "sonner";
 import { subscribeContentRefresh } from "@/lib/contentRefresh";
+import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/tools/")({ component: ToolsIndex });
 
 function ToolsIndex() {
-  const { t, mode, user } = useApp();
+  const { t, proEnabled, user } = useApp();
   const navigate = useNavigate();
   const [tools, setTools] = useState<Tool[]>([]);
   const [favs, setFavs] = useState<Set<string>>(new Set());
@@ -29,6 +30,8 @@ function ToolsIndex() {
   const [cat, setCat] = useState("all");
   const [cost, setCost] = useState("all");
   const [aud, setAud] = useState("all");
+  const [minSafety, setMinSafety] = useState("all");
+  const [minRating, setMinRating] = useState("all");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -92,9 +95,11 @@ function ToolsIndex() {
       if (cat !== "all" && tl.category !== cat) return false;
       if (cost !== "all" && tl.cost_tier !== cost) return false;
       if (aud !== "all" && tl.audience !== aud && tl.audience !== "both") return false;
+      if (proEnabled && minSafety !== "all" && (tl.safety_score ?? -1) < Number(minSafety)) return false;
+      if (proEnabled && minRating !== "all" && Number(tl.rating) < Number(minRating)) return false;
       return true;
     });
-  }, [tools, q, cat, cost, aud]);
+  }, [tools, q, cat, cost, aud, proEnabled, minSafety, minRating]);
 
   async function toggleFav(toolId: string) {
     if (!user) {
@@ -124,7 +129,7 @@ function ToolsIndex() {
         <p className="mt-2 text-muted-foreground">{t.directorySubtitle}</p>
       </header>
 
-      <div className="mb-8 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+      <div className={cn("mb-8 grid gap-3 sm:grid-cols-2", proEnabled ? "lg:grid-cols-6" : "lg:grid-cols-4")}>
         <div className="relative lg:col-span-1">
           <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
           <Input
@@ -156,11 +161,33 @@ function ToolsIndex() {
           <SelectTrigger><SelectValue placeholder={t.filterAudience} /></SelectTrigger>
           <SelectContent>
             <SelectItem value="all">{t.filterAudience}: all</SelectItem>
-            <SelectItem value="pro">{mode === "pro" ? "Pro" : "Expert"}</SelectItem>
-            <SelectItem value="discover">Discover</SelectItem>
+            <SelectItem value="pro">Pro</SelectItem>
+            <SelectItem value="discover">General</SelectItem>
             <SelectItem value="both">Both</SelectItem>
           </SelectContent>
         </Select>
+        {proEnabled && (
+          <Select value={minSafety} onValueChange={setMinSafety} disabled={loading}>
+            <SelectTrigger><SelectValue placeholder={t.filterSafety} /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">{t.filterSafety}: all</SelectItem>
+              <SelectItem value="9">9+</SelectItem>
+              <SelectItem value="8">8+</SelectItem>
+              <SelectItem value="7">7+</SelectItem>
+            </SelectContent>
+          </Select>
+        )}
+        {proEnabled && (
+          <Select value={minRating} onValueChange={setMinRating} disabled={loading}>
+            <SelectTrigger><SelectValue placeholder={t.filterMinRating} /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">{t.filterMinRating}: all</SelectItem>
+              <SelectItem value="4.5">4.5+</SelectItem>
+              <SelectItem value="4.0">4.0+</SelectItem>
+              <SelectItem value="3.5">3.5+</SelectItem>
+            </SelectContent>
+          </Select>
+        )}
       </div>
 
       {error && (

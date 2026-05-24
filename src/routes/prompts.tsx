@@ -1,7 +1,8 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useEffect, useMemo, useState, useCallback } from "react";
 import { useApp } from "@/contexts/AppContext";
-import { PROMPT_CATEGORIES, PROMPTS, getPromptForMode, getPromptSupportText } from "@/lib/promptRepo";
+import { depthCopy } from "@/lib/copy";
+import { PROMPT_CATEGORIES, PROMPTS, getPromptForDepth, getPromptSupportText } from "@/lib/promptRepo";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -16,7 +17,7 @@ import { subscribeContentRefresh } from "@/lib/contentRefresh";
 export const Route = createFileRoute("/prompts")({ component: PromptsPage });
 
 function PromptsPage() {
-  const { mode, user } = useApp();
+  const { t, proEnabled, user } = useApp();
   const navigate = useNavigate();
   const [query, setQuery] = useState("");
   const [category, setCategory] = useState<string>("all");
@@ -86,15 +87,15 @@ function PromptsPage() {
         item.title,
         item.description,
         item.category,
-        getPromptForMode(item, mode),
-        getPromptSupportText(item, mode),
+        getPromptForDepth(item, proEnabled),
+        getPromptSupportText(item, proEnabled),
       ]
         .join(" ")
         .toLowerCase();
 
       return terms.every((term) => corpus.includes(term));
     });
-  }, [category, mode, query, savedOnly, savedPromptIds]);
+  }, [category, proEnabled, query, savedOnly, savedPromptIds]);
 
   async function copyPrompt(text: string) {
     try {
@@ -121,7 +122,7 @@ function PromptsPage() {
 
     const item = PROMPTS.find((prompt) => prompt.id === promptId);
     if (!item) return;
-    const content = getPromptForMode(item, mode);
+    const content = getPromptForDepth(item, proEnabled);
 
     setSavingPromptId(promptId);
     const isSaved = savedPromptIds.has(promptId);
@@ -169,12 +170,10 @@ function PromptsPage() {
     <div className="mx-auto max-w-7xl px-6 py-12">
       <header className="mb-8">
         <h1 className="font-display text-4xl font-bold tracking-tight">
-          {mode === "pro" ? "Prompt Repository" : "Example Prompts"}
+          {depthCopy(t.promptsTitle, t.promptsTitlePro, proEnabled)}
         </h1>
         <p className="mt-2 text-muted-foreground">
-          {mode === "pro"
-            ? "Production-ready prompts for Grok workflows. Includes system prompt structure and optimization notes."
-            : "Search friendly prompts you can copy instantly or run in chat with one click."}
+          {depthCopy(t.promptsSubtitle, t.promptsSubtitlePro, proEnabled)}
         </p>
       </header>
       {saveFeatureMessage && (
@@ -189,7 +188,7 @@ function PromptsPage() {
           <Input
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            placeholder={mode === "pro" ? "Search prompts, systems, optimization notes..." : "Search prompts by goal or category..."}
+            placeholder={depthCopy(t.promptsSearchPlaceholder, t.promptsSearchPlaceholderPro, proEnabled)}
             className="pl-9"
           />
         </div>
@@ -236,8 +235,8 @@ function PromptsPage() {
 
       <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
         {filtered.map((item) => {
-          const prompt = getPromptForMode(item, mode);
-          const support = getPromptSupportText(item, mode);
+          const prompt = getPromptForDepth(item, proEnabled);
+          const support = getPromptSupportText(item, proEnabled);
           return (
             <Card key={item.id} className="flex h-full flex-col rounded-2xl shadow-card">
               <CardHeader className="pb-3">

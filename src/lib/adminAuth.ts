@@ -59,6 +59,8 @@ export async function requireAdmin(request: Request): Promise<AdminContext | Res
   return { userId: user.id, supabase };
 }
 
-export function sanitizeAdminMode(input: unknown): "pro" | "discover" {
-  return input === "pro" ? "pro" : "discover";
+export function sanitizeAdminProEnabled(input: unknown, legacyMode?: unknown): boolean {
+  if (typeof input === "boolean") return input;
+  if (input === "pro" || legacyMode === "pro") return true;
+  return false;
 }

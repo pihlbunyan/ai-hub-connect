@@ -1,8 +1,10 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { generatePrompts } from "@/lib/agents";
-import { requireAdmin, sanitizeAdminMode } from "@/lib/adminAuth";
+import { requireAdmin, sanitizeAdminProEnabled } from "@/lib/adminAuth";
 
 type GeneratePromptsBody = {
+  proEnabled?: boolean;
+  /** @deprecated Use proEnabled */
   mode?: "pro" | "discover";
 };
 
@@ -15,15 +17,15 @@ export const Route = createFileRoute("/api/admin/generate-prompts")({
 
         try {
           const body = (await request.json().catch(() => ({}))) as GeneratePromptsBody;
-          const mode = sanitizeAdminMode(body.mode);
-          const prompts = await generatePrompts(auth.supabase, auth.userId, 6, mode);
+          const proEnabled = sanitizeAdminProEnabled(body.proEnabled, body.mode);
+          const prompts = await generatePrompts(auth.supabase, auth.userId, 6, proEnabled);
 
           return Response.json({
             success: true,
             count: prompts.count,
             created: prompts.created,
             updated: prompts.updated,
-            mode,
+            proEnabled,
           });
         } catch (error) {
           console.error("[api/admin/generate-prompts]", error);

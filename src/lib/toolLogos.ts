@@ -8,21 +8,42 @@ export const TOOL_DOMAINS: Record<string, string> = {
   claude: "claude.ai",
   "claude-artifacts": "claude.ai",
   chatgpt: "openai.com",
+  "dall-e": "openai.com",
+  sora: "openai.com",
+  "openai-platform": "platform.openai.com",
+  xai: "x.ai",
   grok: "x.ai",
   gemini: "gemini.google.com",
-  perplexity: "perplexity.ai",
-  cursor: "cursor.com",
+  alphafold: "ebi.ac.uk",
+  "meta-ai": "meta.ai",
+  "nvidia-nim": "nvidia.com",
+  mistral: "mistral.ai",
+  "hugging-face": "huggingface.co",
+  "microsoft-copilot": "copilot.microsoft.com",
   "github-copilot": "github.com",
+  "azure-openai": "azure.microsoft.com",
+  "amazon-bedrock": "aws.amazon.com",
+  cohere: "cohere.com",
+  groq: "groq.com",
+  "together-ai": "together.ai",
+  perplexity: "perplexity.ai",
+  "character-ai": "character.ai",
+  cursor: "cursor.com",
   midjourney: "midjourney.com",
   kling: "klingai.com",
   runway: "runwayml.com",
+  "stable-diffusion": "stability.ai",
   elevenlabs: "elevenlabs.io",
+  replicate: "replicate.com",
+  "fireworks-ai": "fireworks.ai",
+  langchain: "langchain.com",
   zapier: "zapier.com",
   "zapier-agents": "zapier.com",
   lindy: "lindy.ai",
   n8n: "n8n.io",
   openrouter: "openrouter.ai",
   synthesia: "synthesia.io",
+  "tesla-ai": "tesla.com",
   "the-rundown-ai": "therundown.ai",
   "tldr-ai": "tldr.tech",
   "mit-tech-review-ai": "technologyreview.com",
@@ -70,9 +91,15 @@ function withDomainFallbacks(domain: string, ...primaries: string[]): readonly s
   return dedupeUrls([...primaries, ...domainFallbacks(domain)]);
 }
 
+/** Shared xAI / Grok brand assets (tools slug `xai` + `grok`, Official Updates @xai). */
+export const XAI_LOGO_CANDIDATES = [
+  "https://x.ai/favicon.ico",
+  "https://grok.x.ai/favicon.ico",
+  "https://upload.wikimedia.org/wikipedia/commons/thumb/6/6e/XAI_logo.svg/256px-XAI_logo.svg.png",
+] as const;
+
 /**
- * All 20 seeded tools with 4–7 verified candidates each.
- * Primary URLs tested via HTTP fetch; domain fallbacks use DuckDuckGo/icon.horse/Google.
+ * Curated logo candidates per slug; domain fallbacks appended for reliability.
  */
 export const KNOWN_TOOL_LOGO_CANDIDATES: Record<string, readonly string[]> = {
   claude: withDomainFallbacks(
@@ -93,7 +120,49 @@ export const KNOWN_TOOL_LOGO_CANDIDATES: Record<string, readonly string[]> = {
     "https://upload.wikimedia.org/wikipedia/commons/4/4d/OpenAI_Logo.svg",
     "https://chatgpt.com/favicon.ico",
   ),
-  grok: withDomainFallbacks(TOOL_DOMAINS.grok, "https://x.ai/favicon.ico", "https://grok.x.ai/favicon.ico"),
+  xai: withDomainFallbacks(TOOL_DOMAINS.xai, ...XAI_LOGO_CANDIDATES),
+  grok: withDomainFallbacks(TOOL_DOMAINS.grok, ...XAI_LOGO_CANDIDATES),
+  "dall-e": withDomainFallbacks(
+    TOOL_DOMAINS["dall-e"],
+    "https://cdn.oaistatic.com/assets/favicon-o20kmmos.svg",
+    "https://openai.com/favicon.ico",
+  ),
+  sora: withDomainFallbacks(TOOL_DOMAINS.sora, "https://openai.com/favicon.ico"),
+  "openai-platform": withDomainFallbacks(
+    TOOL_DOMAINS["openai-platform"],
+    "https://cdn.oaistatic.com/assets/favicon-o20kmmos.svg",
+  ),
+  alphafold: withDomainFallbacks(TOOL_DOMAINS.alphafold, "https://www.ebi.ac.uk/favicon.ico"),
+  "meta-ai": withDomainFallbacks(TOOL_DOMAINS["meta-ai"], "https://www.meta.ai/apple-touch-icon.png"),
+  "nvidia-nim": withDomainFallbacks(
+    TOOL_DOMAINS["nvidia-nim"],
+    "https://www.nvidia.com/favicon.ico",
+  ),
+  mistral: withDomainFallbacks(
+    TOOL_DOMAINS.mistral,
+    "https://mistral.ai/apple-touch-icon.png",
+    "https://chat.mistral.ai/favicon.ico",
+  ),
+  "hugging-face": withDomainFallbacks(
+    TOOL_DOMAINS["hugging-face"],
+    "https://huggingface.co/front/assets/huggingface_logo-noborder.svg",
+    "https://huggingface.co/favicon.ico",
+  ),
+  "microsoft-copilot": withDomainFallbacks(
+    TOOL_DOMAINS["microsoft-copilot"],
+    "https://copilot.microsoft.com/favicon.ico",
+  ),
+  "azure-openai": withDomainFallbacks(TOOL_DOMAINS["azure-openai"], "https://azure.microsoft.com/favicon.ico"),
+  "amazon-bedrock": withDomainFallbacks(TOOL_DOMAINS["amazon-bedrock"], "https://aws.amazon.com/favicon.ico"),
+  cohere: withDomainFallbacks(TOOL_DOMAINS.cohere, "https://cohere.com/favicon.ico"),
+  groq: withDomainFallbacks(TOOL_DOMAINS.groq, "https://groq.com/favicon.ico"),
+  "together-ai": withDomainFallbacks(TOOL_DOMAINS["together-ai"], "https://www.together.ai/favicon.ico"),
+  "character-ai": withDomainFallbacks(TOOL_DOMAINS["character-ai"], "https://character.ai/favicon.ico"),
+  "stable-diffusion": withDomainFallbacks(TOOL_DOMAINS["stable-diffusion"], "https://stability.ai/favicon.ico"),
+  replicate: withDomainFallbacks(TOOL_DOMAINS.replicate, "https://replicate.com/favicon.ico"),
+  "fireworks-ai": withDomainFallbacks(TOOL_DOMAINS["fireworks-ai"], "https://fireworks.ai/favicon.ico"),
+  langchain: withDomainFallbacks(TOOL_DOMAINS.langchain, "https://www.langchain.com/favicon.ico"),
+  "tesla-ai": withDomainFallbacks(TOOL_DOMAINS["tesla-ai"], "https://www.tesla.com/favicon.ico"),
   gemini: withDomainFallbacks(
     TOOL_DOMAINS.gemini,
     "https://www.gstatic.com/lamda/images/gemini_sparkle_v002_d4735304ff6292a690345.svg",
@@ -167,7 +236,17 @@ type LogoSource = "db" | "slug" | "name-key" | "heuristic" | "domain";
 function slugHeuristicCandidates(key: string, name: string): readonly string[] | null {
   if (/^claude/i.test(name) && !/artifact/i.test(key)) return KNOWN_TOOL_LOGO_CANDIDATES.claude;
   if (/chatgpt|^gpt$/i.test(name)) return KNOWN_TOOL_LOGO_CANDIDATES.chatgpt;
-  if (/grok/i.test(name) || key === "grok") return KNOWN_TOOL_LOGO_CANDIDATES.grok;
+  if (/grok|x\s*ai/i.test(name) || key === "grok" || key === "xai") {
+    return KNOWN_TOOL_LOGO_CANDIDATES.xai;
+  }
+  if (/mistral/i.test(name)) return KNOWN_TOOL_LOGO_CANDIDATES.mistral;
+  if (/hugging\s*face/i.test(name)) return KNOWN_TOOL_LOGO_CANDIDATES["hugging-face"];
+  if (/cohere/i.test(name)) return KNOWN_TOOL_LOGO_CANDIDATES.cohere;
+  if (/bedrock/i.test(name)) return KNOWN_TOOL_LOGO_CANDIDATES["amazon-bedrock"];
+  if (/replicate/i.test(name)) return KNOWN_TOOL_LOGO_CANDIDATES.replicate;
+  if (/langchain/i.test(name)) return KNOWN_TOOL_LOGO_CANDIDATES.langchain;
+  if (/character\.?ai/i.test(name)) return KNOWN_TOOL_LOGO_CANDIDATES["character-ai"];
+  if (/stable\s*diffusion|stability/i.test(name)) return KNOWN_TOOL_LOGO_CANDIDATES["stable-diffusion"];
   if (/gemini/i.test(name)) return KNOWN_TOOL_LOGO_CANDIDATES.gemini;
   if (/perplexity/i.test(name)) return KNOWN_TOOL_LOGO_CANDIDATES.perplexity;
   if (/copilot/i.test(name)) return KNOWN_TOOL_LOGO_CANDIDATES["github-copilot"];

@@ -169,6 +169,69 @@ export type Database = {
         }
         Relationships: []
       }
+      trending_topics: {
+        Row: {
+          created_at: string
+          discover_blurb: string
+          discover_description: string
+          discover_title: string
+          expires_at: string
+          external_links: Json
+          latest_news: string[]
+          popularity: number
+          pro_blurb: string
+          pro_description: string
+          pro_title: string
+          refreshed_at: string
+          related_tool_slugs: string[]
+          signal_sources: Json
+          slug: string
+          suggested_prompts: Json
+          tutorials: string[]
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          discover_blurb: string
+          discover_description: string
+          discover_title: string
+          expires_at: string
+          external_links?: Json
+          latest_news?: string[]
+          popularity?: number
+          pro_blurb: string
+          pro_description: string
+          pro_title: string
+          refreshed_at?: string
+          related_tool_slugs?: string[]
+          signal_sources?: Json
+          slug: string
+          suggested_prompts: Json
+          tutorials?: string[]
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          discover_blurb?: string
+          discover_description?: string
+          discover_title?: string
+          expires_at?: string
+          external_links?: Json
+          latest_news?: string[]
+          popularity?: number
+          pro_blurb?: string
+          pro_description?: string
+          pro_title?: string
+          refreshed_at?: string
+          related_tool_slugs?: string[]
+          signal_sources?: Json
+          slug?: string
+          suggested_prompts?: Json
+          tutorials?: string[]
+          updated_at?: string
+        }
+        Relationships: []
+      }
       news_posts: {
         Row: {
           content: string
@@ -176,6 +239,7 @@ export type Database = {
           id: string
           image_url: string | null
           published_at: string
+          related_tool_slug: string | null
           source: string
           summary: string
           title: string
@@ -188,6 +252,7 @@ export type Database = {
           id?: string
           image_url?: string | null
           published_at: string
+          related_tool_slug?: string | null
           source: string
           summary: string
           title: string
@@ -200,6 +265,7 @@ export type Database = {
           id?: string
           image_url?: string | null
           published_at?: string
+          related_tool_slug?: string | null
           source?: string
           summary?: string
           title?: string

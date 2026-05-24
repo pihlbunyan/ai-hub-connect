@@ -14,7 +14,7 @@ import { NewsDetailDialog } from "@/components/NewsDetailDialog";
 import { useIsMobile } from "@/hooks/use-mobile";
 
 export function NewsLatestTab() {
-  const { mode, t } = useApp();
+  const { t } = useApp();
   const isMobile = useIsMobile();
   const [posts, setPosts] = useState<NewsPost[]>([]);
   const [loading, setLoading] = useState(true);
@@ -24,8 +24,8 @@ export function NewsLatestTab() {
   const [searchQuery, setSearchQuery] = useState("");
 
   const filteredPosts = useMemo(
-    () => filterNewsPosts(posts, searchQuery, mode),
-    [posts, searchQuery, mode],
+    () => filterNewsPosts(posts, searchQuery),
+    [posts, searchQuery],
   );
 
   const selectedPost = useMemo(

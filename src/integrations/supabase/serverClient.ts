@@ -34,7 +34,7 @@ export function hasSupabaseServiceRole(): boolean {
 }
 
 export function canRunToolDetailGeneration(): boolean {
-  return Boolean(process.env.GROK_API_KEY?.trim()) && hasSupabaseServiceRole();
+  return Boolean(process.env.ANTHROPIC_API_KEY?.trim()) && hasSupabaseServiceRole();
 }
 
 function createServerClient(apiKey: string, url: string): SupabaseClient<Database> {

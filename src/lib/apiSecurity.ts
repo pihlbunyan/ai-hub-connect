@@ -11,8 +11,11 @@ export function sanitizePrompt(input: unknown, maxLength = MAX_PROMPT_LENGTH): s
   return cleaned;
 }
 
-export function sanitizeMode(input: unknown): "pro" | "discover" {
-  return input === "pro" ? "pro" : "discover";
+/** Parse client Pro depth flag (accepts legacy `mode: "pro"` for compatibility). */
+export function sanitizeProEnabled(input: unknown, legacyMode?: unknown): boolean {
+  if (typeof input === "boolean") return input;
+  if (input === "pro" || legacyMode === "pro") return true;
+  return false;
 }
 
 export function sanitizeModels(input: unknown): string[] {

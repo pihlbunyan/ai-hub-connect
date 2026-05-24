@@ -1,4 +1,4 @@
-export type ContentTarget = "tools" | "news" | "official-updates" | "prompts";
+export type ContentTarget = "tools" | "news" | "official-updates" | "prompts" | "topics";
 
 const EVENT = "pihlai:content-refresh";
 

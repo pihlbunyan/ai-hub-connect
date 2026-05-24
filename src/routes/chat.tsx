@@ -24,7 +24,7 @@ type Usage = {
 };
 
 function ChatPage() {
-  const { t, mode, user } = useApp();
+  const { t, proEnabled, user } = useApp();
   const [prompt, setPrompt] = useState("");
   const [running, setRunning] = useState(false);
   const [parallelMode] = useState(false); // reserved for future multi-model fanout
@@ -78,7 +78,7 @@ function ChatPage() {
         signal: controller.signal,
         body: JSON.stringify({
           prompt: currentPrompt,
-          mode,
+          proEnabled,
           stream: true,
           models: ["grok"],
         }),
@@ -203,7 +203,7 @@ function ChatPage() {
           prompt: currentPrompt,
           models_used: ["grok"],
           responses: {
-            mode,
+            proEnabled,
             model: doneUsage.model,
             output: finalContent,
             usage: doneUsage,
@@ -246,7 +246,9 @@ function ChatPage() {
     <div className="mx-auto max-w-7xl px-6 py-12">
       <header className="mb-8">
         <h1 className="font-display text-4xl font-bold">{t.chatTitle}</h1>
-        <p className="mt-2 text-muted-foreground">{t.chatSubtitle}</p>
+        <p className="mt-2 text-muted-foreground">
+          {proEnabled ? t.chatSubtitlePro : t.chatSubtitle}
+        </p>
       </header>
 
       <div className="grid gap-6 lg:grid-cols-[280px_minmax(0,1fr)]">
@@ -258,7 +260,7 @@ function ChatPage() {
           <CardContent className="space-y-4">
             <Button type="button" variant="default" className="h-auto w-full justify-start rounded-xl px-4 py-3 text-left">
               <div className="flex flex-col items-start">
-                <span className={cn("font-semibold", mode === "discover" && "text-base")}>Grok 4 (selected)</span>
+                <span className="font-semibold">Grok 4 (selected)</span>
                 <span className="text-xs font-normal text-primary-foreground/85">Default engine for fast, strong responses</span>
               </div>
             </Button>
@@ -311,7 +313,7 @@ function ChatPage() {
                             <span>Grok</span>
                           </div>
                         )}
-                        {mode === "pro" || message.role === "user" ? (
+                        {proEnabled || message.role === "user" ? (
                           <pre className="whitespace-pre-wrap break-words text-sm leading-relaxed font-sans">{message.content || (running ? "Streaming response..." : "")}</pre>
                         ) : (
                           <div className="space-y-2">
@@ -326,7 +328,7 @@ function ChatPage() {
                             {!message.content && running && <p className="text-sm text-muted-foreground">Streaming response...</p>}
                           </div>
                         )}
-                        {mode === "pro" && message.usage && (
+                        {proEnabled && message.usage && (
                           <div className="mt-3 border-t pt-2 text-[11px] text-muted-foreground">
                             {message.usage.model} · {message.usage.latency}ms · in {message.usage.tokensIn ?? 0} · out {message.usage.tokensOut ?? 0} · ${(
                               message.usage.cost ?? 0
@@ -347,7 +349,7 @@ function ChatPage() {
             )}
 
             <div className="mt-4 space-y-2">
-              <Label htmlFor="prompt" className={cn(mode === "discover" && "text-base")}>
+              <Label htmlFor="prompt">
                 {t.chatPromptLabel}
               </Label>
               <div className="flex items-center gap-2">
@@ -362,7 +364,7 @@ function ChatPage() {
                     }
                   }}
                   placeholder={t.chatPromptPlaceholder}
-                  className={cn("h-11", mode === "discover" && "text-base")}
+                  className="h-11"
                 />
                 {running ? (
                   <Button type="button" variant="outline" onClick={stopRun}>
@@ -373,7 +375,7 @@ function ChatPage() {
                     type="button"
                     onClick={run}
                     disabled={!prompt.trim()}
-                    size={mode === "discover" ? "lg" : "default"}
+                    size={proEnabled ? "default" : "lg"}
                     className="gap-2"
                   >
                     <Send className="h-4 w-4" />

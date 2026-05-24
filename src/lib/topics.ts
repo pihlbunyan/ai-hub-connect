@@ -1,5 +1,8 @@
-import type { Mode } from "@/lib/copy";
+import { pickDepthLabel } from "@/lib/depth";
 
+/**
+ * Curated (static) AI topics. Dynamic trending topics live in `trending_topics` (see trendingTopics.ts).
+ */
 export type Topic = {
   slug: string;
   popularity: number;
@@ -219,14 +222,14 @@ export const TOPICS: Topic[] = [
   },
 ];
 
-export function getTopicTitle(topic: Topic, mode: Mode) {
-  return mode === "pro" ? topic.proTitle : topic.discoverTitle;
+export function getTopicTitle(topic: Topic, proEnabled: boolean) {
+  return pickDepthLabel(topic.discoverTitle, topic.proTitle, proEnabled);
 }
 
-export function getTopicBlurb(topic: Topic, mode: Mode) {
-  return mode === "pro" ? topic.proBlurb : topic.discoverBlurb;
+export function getTopicBlurb(topic: Topic, proEnabled: boolean) {
+  return pickDepthLabel(topic.discoverBlurb, topic.proBlurb, proEnabled);
 }
 
-export function getTopicDescription(topic: Topic, mode: Mode) {
-  return mode === "pro" ? topic.proDescription : topic.discoverDescription;
+export function getTopicDescription(topic: Topic, proEnabled: boolean) {
+  return pickDepthLabel(topic.discoverDescription, topic.proDescription, proEnabled);
 }

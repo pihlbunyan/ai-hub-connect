@@ -107,7 +107,11 @@ export function GrokUsageCard({ refreshKey = 0 }: { refreshKey?: number }) {
         <>
           <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
             <UsageStat label="Tokens today" value={formatTokens(summary.totalTokens)} hint={`${formatTokens(summary.tokensIn)} in · ${formatTokens(summary.tokensOut)} out`} />
-            <UsageStat label="Est. cost today" value={formatCost(summary.cost)} hint="grok-4-1-fast-reasoning" />
+            <UsageStat
+              label="Est. cost today"
+              value={formatCost(summary.cost)}
+              hint="chat + news: Grok · tools/prompts: Claude"
+            />
             <UsageStat
               label="Remaining (est.)"
               value={formatTokens(summary.remainingEstimate)}

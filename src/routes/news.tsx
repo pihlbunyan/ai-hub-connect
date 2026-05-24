@@ -1,6 +1,7 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useState } from "react";
 import { useApp } from "@/contexts/AppContext";
+import { depthCopy } from "@/lib/copy";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { NewsLatestTab } from "@/components/NewsLatestTab";
 import { OfficialUpdatesTab } from "@/components/OfficialUpdatesTab";
@@ -10,7 +11,7 @@ export const Route = createFileRoute("/news")({ component: NewsPage });
 type NewsTab = "latest" | "official";
 
 function NewsPage() {
-  const { mode } = useApp();
+  const { t, proEnabled } = useApp();
   const [activeTab, setActiveTab] = useState<NewsTab>("latest");
 
   return (
@@ -18,9 +19,7 @@ function NewsPage() {
       <header className="mb-6 lg:mb-8">
         <h1 className="font-display text-3xl font-bold tracking-tight sm:text-4xl">AI News Feed</h1>
         <p className="mt-2 max-w-xl text-sm text-muted-foreground sm:text-base">
-          {mode === "pro"
-            ? "Curated stories and verified announcements from leading AI companies."
-            : "Stay current with AI news and official updates from the teams building the tools."}
+          {depthCopy(t.newsSubtitle, t.newsSubtitlePro, proEnabled)}
         </p>
       </header>
 
@@ -39,7 +38,7 @@ function NewsPage() {
         </TabsContent>
 
         <TabsContent value="official" className="mt-0 focus-visible:outline-none">
-          <OfficialUpdatesTab />
+          <OfficialUpdatesTab isActive={activeTab === "official"} />
         </TabsContent>
       </Tabs>
 

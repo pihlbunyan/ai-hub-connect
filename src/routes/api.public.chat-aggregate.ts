@@ -1,13 +1,16 @@
 import { createFileRoute } from "@tanstack/react-router";
 import {
   enforcePublicRateLimit,
-  sanitizeMode,
+  sanitizeProEnabled,
   sanitizeModels,
   sanitizePrompt,
 } from "@/lib/apiSecurity";
+import { CHAT_GROK_MODEL } from "@/lib/grokUsage.shared";
 
 type ChatRequest = {
   prompt?: string;
+  proEnabled?: boolean;
+  /** @deprecated Use proEnabled */
   mode?: "pro" | "discover";
   stream?: boolean;
   models?: string[];
@@ -23,7 +26,6 @@ type ChatResult = {
   cost?: number;
 };
 
-const GROK_MODEL = "grok-4-1-fast-reasoning";
 const INPUT_COST_PER_M_TOKENS = 3;
 const OUTPUT_COST_PER_M_TOKENS = 15;
 
@@ -37,8 +39,8 @@ function estimateCost(promptTokens: number, completionTokens: number): number {
   return Number((inputCost + outputCost).toFixed(6));
 }
 
-function buildSystemPrompt(mode: "pro" | "discover"): string {
-  if (mode === "pro") {
+function buildSystemPrompt(proEnabled: boolean): string {
+  if (proEnabled) {
     return `You are PiHLAI's Grok aggregator in Pro mode.
 Output requirements:
 - Be concise but technical.
@@ -66,7 +68,7 @@ export const Route = createFileRoute("/api/public/chat-aggregate")({
         try {
           const body = (await request.json()) as ChatRequest;
           const prompt = sanitizePrompt(body?.prompt);
-          const mode = sanitizeMode(body?.mode);
+          const proEnabled = sanitizeProEnabled(body?.proEnabled, body?.mode);
           const stream = Boolean(body?.stream);
           const models = sanitizeModels(body?.models);
 
@@ -91,9 +93,9 @@ export const Route = createFileRoute("/api/public/chat-aggregate")({
               Authorization: `Bearer ${apiKey}`,
             },
             body: JSON.stringify({
-              model: GROK_MODEL,
+              model: CHAT_GROK_MODEL,
               messages: [
-                { role: "system", content: buildSystemPrompt(mode) },
+                { role: "system", content: buildSystemPrompt(proEnabled) },
                 { role: "user", content: prompt },
               ],
               temperature: 0.7,

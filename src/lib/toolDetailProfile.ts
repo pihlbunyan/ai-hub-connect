@@ -1,6 +1,6 @@
 import { formatDistanceToNow } from "date-fns";
 import type { Json } from "@/integrations/supabase/types";
-import type { Mode } from "@/lib/copy";
+import { pickDepthList, pickDepthText } from "@/lib/depth";
 
 /** Detail profiles older than this are refreshed in the background. */
 export const TOOL_DETAIL_MAX_AGE_MS = 30 * 24 * 60 * 60 * 1000;
@@ -99,22 +99,13 @@ export function parseToolDetailProfile(raw: Json | null | undefined): ToolDetail
   };
 }
 
-export function pickToolDetailForMode(profile: ToolDetailProfile, mode: Mode): ToolDetailView {
-  const pickText = (slice: ToolDetailModeSlice) =>
-    (mode === "pro" ? slice.pro || slice.discover : slice.discover || slice.pro).trim();
-
-  const pickList = (slice: ToolDetailListSlice) => {
-    const primary = mode === "pro" ? slice.pro : slice.discover;
-    const fallback = mode === "pro" ? slice.discover : slice.pro;
-    return (primary.length ? primary : fallback).slice(0, 8);
-  };
-
+export function pickToolDetailForDepth(profile: ToolDetailProfile, proEnabled: boolean): ToolDetailView {
   return {
-    overview: pickText(profile.overview),
-    best_for: pickList(profile.best_for),
-    strengths: pickList(profile.strengths),
-    weaknesses: pickList(profile.weaknesses),
-    pricing: pickText(profile.pricing),
+    overview: pickDepthText(profile.overview, proEnabled),
+    best_for: pickDepthList(profile.best_for, proEnabled),
+    strengths: pickDepthList(profile.strengths, proEnabled),
+    weaknesses: pickDepthList(profile.weaknesses, proEnabled),
+    pricing: pickDepthText(profile.pricing, proEnabled),
   };
 }
 
@@ -220,6 +211,54 @@ export const KNOWN_TOOL_STRENGTH_HINTS: Record<
       "Consistent artistic styles",
     ],
     best_for: ["Best for designers and creative professionals", "Ideal for marketing visuals"],
+  },
+  mistral: {
+    codingRelevant: true,
+    strengths: [
+      "Efficient open and frontier models (Mixtral heritage)",
+      "Strong multilingual and EU deployment options",
+      "Competitive API pricing for production apps",
+    ],
+    best_for: ["Best for cost-conscious API deployments", "Good for European data residency needs"],
+  },
+  "hugging-face": {
+    codingRelevant: true,
+    strengths: [
+      "Largest open model and dataset hub",
+      "Transformers library ecosystem",
+      "Spaces for demos and community benchmarks",
+    ],
+    best_for: [
+      "Best for ML engineers and researchers",
+      "Ideal for finding and hosting open-weight models",
+    ],
+  },
+  cohere: {
+    codingRelevant: false,
+    strengths: [
+      "Enterprise RAG with embed + rerank",
+      "Command models tuned for business workflows",
+      "Strong retrieval and agent tooling (North)",
+    ],
+    best_for: ["Best for enterprise search and support bots", "Ideal for regulated industries"],
+  },
+  "amazon-bedrock": {
+    codingRelevant: true,
+    strengths: [
+      "Multi-model access inside AWS VPC",
+      "Knowledge Bases and Guardrails for RAG",
+      "Agents and IAM-native governance",
+    ],
+    best_for: ["Best for AWS-native teams", "Ideal for compliant enterprise LLM apps"],
+  },
+  langchain: {
+    codingRelevant: true,
+    strengths: [
+      "LangGraph for stateful agents",
+      "LangSmith tracing, evals, and datasets",
+      "Broad integrations across model providers",
+    ],
+    best_for: ["Best for teams shipping agentic apps", "Ideal for observability-heavy LLM stacks"],
   },
 };
 

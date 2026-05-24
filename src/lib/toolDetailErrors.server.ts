@@ -7,7 +7,7 @@ export function sanitizeToolDetailApiError(error: unknown): { message: string; s
   }
 
   if (
-    /Missing Supabase|SUPABASE_SERVICE_ROLE|SERVICE_ROLE|GROK_API_KEY|environment variable/i.test(raw)
+    /Missing Supabase|SUPABASE_SERVICE_ROLE|SERVICE_ROLE|ANTHROPIC_API_KEY|GROK_API_KEY|environment variable/i.test(raw)
   ) {
     return {
       message: "Extended details are temporarily unavailable. Showing cached information.",

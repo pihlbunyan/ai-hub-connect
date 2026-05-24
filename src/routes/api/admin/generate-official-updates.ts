@@ -17,6 +17,9 @@ export const Route = createFileRoute("/api/admin/generate-official-updates")({
             count: posts.count,
             created: posts.created,
             updated: posts.updated,
+            deleted: posts.deleted,
+            checked: posts.checked,
+            message: posts.message,
           });
         } catch (error) {
           console.error("[api/admin/generate-official-updates]", error);

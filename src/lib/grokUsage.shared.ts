@@ -1,6 +1,13 @@
 /** Client-safe Grok usage types and cost math (no server imports). */
 
-export const GROK_MODEL = "grok-4-1-fast-reasoning";
+/** Main user chat / lightweight streaming endpoints. */
+export const CHAT_GROK_MODEL = "grok-4-1-fast-reasoning";
+
+/** Admin agents: news, tools, prompts, tool detail (higher quality, fewer hallucinations). */
+export const AGENT_GROK_MODEL = "grok-4";
+
+/** @deprecated Prefer CHAT_GROK_MODEL or AGENT_GROK_MODEL. */
+export const GROK_MODEL = CHAT_GROK_MODEL;
 
 export const DEFAULT_DAILY_TOKEN_LIMIT = 2_000_000;
 
@@ -12,8 +19,11 @@ export type GrokAgentType =
   | "generateToolsSafety"
   | "generateToolDetail"
   | "generateNews"
-  | "generateNewsCredibility"
-  | "generateOfficialUpdates"
+  | "generateNewsSearchQueries"
+  | "generateNewsRssValidation"
+  | "generateNewsValidation"
+  | "generateToolNews"
+  | "generateToolNewsValidation"
   | "generatePrompts"
   | "chat"
   | "siteHost"

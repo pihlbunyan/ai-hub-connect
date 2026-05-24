@@ -2,11 +2,11 @@ import { Link } from "@tanstack/react-router";
 import { useApp } from "@/contexts/AppContext";
 import { Button } from "@/components/ui/button";
 import { Sparkles, Moon, Sun, LogOut } from "lucide-react";
-import { ModeToggle } from "./ModeToggle";
+import { ProToggle } from "./ProToggle";
 import { BrandName } from "./BrandName";
 
 export function NavBar() {
-  const { t, mode, theme, toggleTheme, user, signOut } = useApp();
+  const { t, theme, toggleTheme, user, signOut } = useApp();
   const username =
     (user?.user_metadata?.display_name as string | undefined)?.trim() ||
     user?.email?.split("@")[0] ||
@@ -26,14 +26,14 @@ export function NavBar() {
         <nav className="hidden items-center gap-1 md:flex">
           <NavLink to="/tools">{t.navDirectory}</NavLink>
           <NavLink to="/topics">{t.navTopics}</NavLink>
-          <NavLink to="/prompts">{mode === "pro" ? "Prompt Repo" : "Example Prompts"}</NavLink>
+          <NavLink to="/prompts">{t.navPrompts}</NavLink>
           <NavLink to="/chat">{t.navChat}</NavLink>
           <NavLink to="/news">{t.navNews}</NavLink>
           <NavLink to="/dashboard">{t.navDashboard}</NavLink>
         </nav>
 
         <div className="flex items-center gap-2">
-          <ModeToggle />
+          <ProToggle />
           <Button variant="ghost" size="icon" onClick={toggleTheme} aria-label="Toggle theme">
             {theme === "dark" ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
           </Button>

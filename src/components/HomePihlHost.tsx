@@ -19,16 +19,15 @@ type HostMessage = {
 };
 
 export function HomePihlHost() {
-  const { mode } = useApp();
+  const { proEnabled } = useApp();
   const [input, setInput] = useState("");
   const [busy, setBusy] = useState(false);
   const [messages, setMessages] = useState<HostMessage[]>([
     {
       role: "assistant",
-      text:
-        mode === "pro"
-          ? "Welcome. I can route you to the exact page, topic, or tool."
-          : "Welcome! I can help you find the right page, topic, or tool.",
+      text: proEnabled
+        ? "Welcome. I can route you to the exact page, topic, or tool."
+        : "Welcome! I can help you find the right page, topic, or tool.",
       links: [
         { label: "Open Directory", type: "toolsIndex" },
         { label: "Explore Topics", type: "topicsIndex" },
@@ -36,7 +35,7 @@ export function HomePihlHost() {
     },
   ]);
 
-  const placeholder = mode === "pro" ? "Ask Pihl for a route..." : "Ask Pihl for help...";
+  const placeholder = proEnabled ? "Ask Pihl for a route..." : "Ask Pihl for help...";
 
   function inferLinks(query: string): { links: HostLink[]; hasStrongMatch: boolean; normalized: string } {
     const q = query.toLowerCase();
@@ -61,10 +60,9 @@ export function HomePihlHost() {
         {
           label: "Open Chat with Prompt",
           type: "chatPrefill",
-          prompt:
-            mode === "pro"
-              ? `Help me with this goal in a practical, technical way: ${q}`
-              : `Can you help me with this in simple steps: ${q}`,
+          prompt: proEnabled
+            ? `Help me with this goal in a practical, technical way: ${q}`
+            : `Can you help me with this in simple steps: ${q}`,
         },
         { label: "Explore Topics", type: "topicsIndex" },
       );
@@ -82,14 +80,13 @@ export function HomePihlHost() {
       const r = await fetch("/api/public/site-host", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ prompt: text, mode }),
+        body: JSON.stringify({ prompt: text, proEnabled }),
       });
       const data = await r.json();
       const intent = inferLinks(text);
-      const fallbackText =
-        mode === "pro"
-          ? "No dedicated page for that topic yet. Best path is our main chat aggregator where I can generate detailed plans using multiple models."
-          : `Great question! We don't have a dedicated page for ${intent.normalized} yet, but I can help you right now in the main chat with custom ideas.`;
+      const fallbackText = proEnabled
+        ? "No dedicated page for that topic yet. Best path is our main chat aggregator where I can generate detailed plans using multiple models."
+        : `Great question! We don't have a dedicated page for ${intent.normalized} yet, but I can help you right now in the main chat with custom ideas.`;
       setMessages((prev) => [
         ...prev,
         {
@@ -104,10 +101,9 @@ export function HomePihlHost() {
       ]);
     } catch {
       const intent = inferLinks(text);
-      const fallbackText =
-        mode === "pro"
-          ? "No dedicated page for that topic yet. Best path is our main chat aggregator where I can generate detailed plans using multiple models."
-          : `Great question! We don't have a dedicated page for ${intent.normalized} yet, but I can help you right now in the main chat with custom ideas.`;
+      const fallbackText = proEnabled
+        ? "No dedicated page for that topic yet. Best path is our main chat aggregator where I can generate detailed plans using multiple models."
+        : `Great question! We don't have a dedicated page for ${intent.normalized} yet, but I can help you right now in the main chat with custom ideas.`;
       setMessages((prev) => [
         ...prev,
         {

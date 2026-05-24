@@ -1,6 +1,7 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useCallback, useEffect, useState } from "react";
 import { useApp } from "@/contexts/AppContext";
+import { depthCopy } from "@/lib/copy";
 import { Button } from "@/components/ui/button";
 import { ArrowRight, Sparkles, Zap, Layers, MessageSquare, Compass } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
@@ -14,7 +15,7 @@ import { NEWS_POST_SELECT, type NewsPost } from "@/lib/news";
 export const Route = createFileRoute("/")({ component: Index });
 
 function Index() {
-  const { t, mode } = useApp();
+  const { t, proEnabled } = useApp();
   const [latestNews, setLatestNews] = useState<NewsPost[]>([]);
   const [newsLoading, setNewsLoading] = useState(true);
   const [selectedPost, setSelectedPost] = useState<NewsPost | null>(null);
@@ -45,12 +46,12 @@ function Index() {
 
   return (
     <div>
-      <section className={`bg-hero relative overflow-hidden ${mode === "pro" ? "hero--pro" : "hero--discover"}`}>
+      <section className={`bg-hero relative overflow-hidden ${proEnabled ? "hero--pro" : "hero--discover"}`}>
         <div className="hero-contrast-overlay pointer-events-none absolute inset-0" aria-hidden />
         <div className="relative z-10 mx-auto max-w-6xl px-6 py-20 sm:py-28">
           <div className="mx-auto mb-6 inline-flex items-center gap-2 rounded-full border bg-card/70 px-3 py-1 text-xs font-medium text-foreground/90 backdrop-blur">
             <Sparkles className="h-3 w-3 text-primary" />
-            {mode === "pro" ? "v0.1 · operator preview" : "Discover mode"}
+            {depthCopy(t.heroBadge, t.heroBadgePro, proEnabled)}
           </div>
           <h1 className="text-center font-display text-5xl font-bold leading-[1.05] tracking-tight text-foreground drop-shadow-[0_1px_1px_rgba(0,0,0,0.35)] dark:drop-shadow-[0_1px_1px_rgba(0,0,0,0.75)] sm:text-7xl">
             {t.heroTitle
@@ -68,12 +69,12 @@ function Index() {
           </p>
           <HomePihlHost />
           <div className="mt-8 flex flex-wrap justify-center gap-3">
-            <Button asChild size={mode === "discover" ? "lg" : "default"} className="gap-2">
+            <Button asChild size={proEnabled ? "default" : "lg"} className="gap-2">
               <Link to="/tools">
                 {t.ctaPrimary} <ArrowRight className="h-4 w-4" />
               </Link>
             </Button>
-            <Button asChild size={mode === "discover" ? "lg" : "default"} variant="outline">
+            <Button asChild size={proEnabled ? "default" : "lg"} variant="outline">
               <Link to="/chat">{t.ctaSecondary}</Link>
             </Button>
           </div>
@@ -84,30 +85,18 @@ function Index() {
         <div className="grid gap-6 sm:grid-cols-3">
           <Feature
             icon={<Layers className="h-5 w-5" />}
-            title={mode === "pro" ? "Curated tool directory" : "Structured tool directory"}
-            body={
-              mode === "pro"
-                ? "20+ frontier tools indexed by category, audience, and cost tier. Filterable & rated."
-                : "Browse trusted AI tools with clear summaries and practical context."
-            }
+            title={depthCopy(t.homeFeatureDirectory, t.homeFeatureDirectoryPro, proEnabled)}
+            body="Browse trusted AI tools with clear summaries, practical context, and fast filtering."
           />
           <Feature
             icon={<MessageSquare className="h-5 w-5" />}
-            title={mode === "pro" ? "Parallel multi-model inference" : "Direct AI chat"}
-            body={
-              mode === "pro"
-                ? "Fan a single prompt to GPT, Claude & Grok. Compare latency, tokens, cost."
-                : "Ask a prompt and get a clear response from your selected model."
-            }
+            title={depthCopy(t.homeFeatureChat, t.homeFeatureChatPro, proEnabled)}
+            body={depthCopy(t.homeFeatureChatBody, t.homeFeatureChatBodyPro, proEnabled)}
           />
           <Feature
             icon={<Zap className="h-5 w-5" />}
-            title={mode === "pro" ? "Pro/Discover UX layer" : "Two modes, one standard"}
-            body={
-              mode === "pro"
-                ? "Single source of truth re-renders copy, density, and CTAs across every page."
-                : "Choose the experience that fits your workflow while keeping the same core capabilities."
-            }
+            title="One cohesive product"
+            body="Single default experience, with optional Pro depth for advanced workflows."
           />
         </div>
       </section>
@@ -118,7 +107,7 @@ function Index() {
             <div>
               <h2 className="font-display text-2xl font-bold">Discover AI Topics</h2>
               <p className="mt-1 text-sm text-muted-foreground">
-                {mode === "pro"
+                {proEnabled
                   ? "Explore trending themes with deeper technical framing and practical strategy."
                   : "Explore popular AI topics with clear explanations and practical next steps."}
               </p>

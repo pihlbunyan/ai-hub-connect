@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { getOfficialAvatarUrl } from "@/lib/officialUpdates";
+import { useEffect, useMemo, useState } from "react";
+import { getOfficialAvatarUrls } from "@/lib/officialUpdates";
 import { cn } from "@/lib/utils";
 
 type OfficialAvatarProps = {
@@ -31,10 +31,20 @@ function avatarTone(handle: string): string {
 }
 
 export function OfficialAvatar({ handle, name, size = "md", className }: OfficialAvatarProps) {
-  const [failed, setFailed] = useState(false);
-  const src = getOfficialAvatarUrl(handle);
-  const showImage = Boolean(src) && !failed;
+  const candidates = useMemo(() => getOfficialAvatarUrls(handle), [handle]);
+  const [candidateIndex, setCandidateIndex] = useState(0);
+
+  useEffect(() => {
+    setCandidateIndex(0);
+  }, [handle, candidates.join("|")]);
+
+  const src = candidates[candidateIndex];
+  const showImage = Boolean(src) && candidateIndex < candidates.length;
   const dim = size === "sm" ? "h-8 w-8 text-xs" : "h-10 w-10 text-sm";
+
+  const tryNextCandidate = () => {
+    setCandidateIndex((i) => (i + 1 < candidates.length ? i + 1 : candidates.length));
+  };
 
   return (
     <div
@@ -52,7 +62,7 @@ export function OfficialAvatar({ handle, name, size = "md", className }: Officia
           loading="lazy"
           decoding="async"
           referrerPolicy="no-referrer"
-          onError={() => setFailed(true)}
+          onError={tryNextCandidate}
           className="h-full w-full object-cover"
         />
       ) : (

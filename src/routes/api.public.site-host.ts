@@ -1,8 +1,12 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { enforcePublicRateLimit, sanitizeMode, sanitizePrompt } from "@/lib/apiSecurity";
+import { enforcePublicRateLimit, sanitizeProEnabled, sanitizePrompt } from "@/lib/apiSecurity";
+import { profileDbModeFromPro } from "@/lib/depth";
+import { CHAT_GROK_MODEL } from "@/lib/grokUsage.shared";
 
 type HostRequest = {
   prompt?: string;
+  proEnabled?: boolean;
+  /** @deprecated Use proEnabled */
   mode?: "pro" | "discover";
 };
 
@@ -17,7 +21,8 @@ export const Route = createFileRoute("/api/public/site-host")({
         try {
           const body = (await request.json()) as HostRequest;
           const prompt = sanitizePrompt(body?.prompt, 2_000);
-          const mode = sanitizeMode(body?.mode);
+          const proEnabled = sanitizeProEnabled(body?.proEnabled, body?.mode);
+          const depth = profileDbModeFromPro(proEnabled);
 
           if (!prompt) {
             return Response.json({ error: "Prompt is required and must be under 2,000 characters" }, { status: 400 });
@@ -29,7 +34,7 @@ export const Route = createFileRoute("/api/public/site-host")({
           }
 
           const systemPrompt = `You are Pihl, PiHLAI's AI site host.
-Mode: ${mode}.
+Depth: ${depth} (pro = technical routing; discover = friendly routing).
 Primary goal: route users to the best INTERNAL PiHLAI destination first.
 Site structure:
 - Directory: /tools
@@ -57,7 +62,7 @@ Keep answer compact (max 5 short sentences).`;
               Authorization: `Bearer ${apiKey}`,
             },
             body: JSON.stringify({
-              model: "grok-4-1-fast-reasoning",
+              model: CHAT_GROK_MODEL,
               messages: [
                 { role: "system", content: systemPrompt },
                 { role: "user", content: prompt },

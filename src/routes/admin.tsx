@@ -6,7 +6,17 @@ import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "sonner";
 import { emitContentRefresh, type ContentTarget } from "@/lib/contentRefresh";
-import { BadgeCheck, Database, Download, Loader2, RefreshCw, Sparkles, Newspaper, Wrench } from "lucide-react";
+import {
+  BadgeCheck,
+  Database,
+  Download,
+  Flame,
+  Loader2,
+  Newspaper,
+  RefreshCw,
+  Sparkles,
+  Wrench,
+} from "lucide-react";
 import { GrokUsageCard } from "@/components/GrokUsageCard";
 
 export const Route = createFileRoute("/admin")({ component: Admin });
@@ -19,8 +29,11 @@ type GenerateApiResponse = {
   created?: number;
   added?: number;
   updated?: number;
+  deleted?: number;
+  checked?: number;
   skipped?: number;
   safetyRejected?: number;
+  message?: string;
 };
 
 type GenerationSuccess = {
@@ -29,19 +42,29 @@ type GenerationSuccess = {
   created: number;
   updated: number;
   count: number;
-  refreshPath: "/tools" | "/news" | "/prompts";
+  refreshPath: "/tools" | "/news" | "/prompts" | "/topics";
 };
 
-const BACKUP_TABLES = ["tools", "news_posts", "profiles", "chats", "favorites", "prompt_saves"] as const;
+const BACKUP_TABLES = [
+  "tools",
+  "news_posts",
+  "trending_topics",
+  "profiles",
+  "chats",
+  "favorites",
+  "prompt_saves",
+] as const;
 
 function Admin() {
-  const { user, loading, mode } = useApp();
+  const { user, loading, proEnabled } = useApp();
   const nav = useNavigate();
   const [isAdmin, setIsAdmin] = useState<boolean | null>(null);
   const [counts, setCounts] = useState<Counts | null>(null);
   const [countsLoading, setCountsLoading] = useState(false);
   const [backingUp, setBackingUp] = useState(false);
-  const [generating, setGenerating] = useState<"tools" | "news" | "official" | "prompts" | null>(null);
+  const [generating, setGenerating] = useState<
+    "tools" | "news-general" | "official" | "topics" | "prompts" | null
+  >(null);
   const [lastSuccess, setLastSuccess] = useState<GenerationSuccess | null>(null);
   const [usageRefreshKey, setUsageRefreshKey] = useState(0);
 
@@ -167,7 +190,7 @@ function Admin() {
   async function runGenerateTools() {
     setGenerating("tools");
     try {
-      const data = await callAdminApi("/api/admin/generate-tools", { mode });
+      const data = await callAdminApi("/api/admin/generate-tools", { proEnabled });
       toolDiscoveryToast(data);
       markGenerationSuccess("tools", "tools", data, "/tools");
       await loadCounts();
@@ -179,15 +202,37 @@ function Admin() {
     }
   }
 
-  async function runGenerateNews() {
-    setGenerating("news");
+  async function runRefreshGeneralNews() {
+    setGenerating("news-general");
     try {
       const data = await callAdminApi("/api/admin/generate-news");
+      if (data.message && (data.count ?? 0) === 0) {
+        toast.message(data.message);
+        return;
+      }
       generationToast(data, "news item");
       markGenerationSuccess("news", "news items", data, "/news");
       setUsageRefreshKey((k) => k + 1);
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "News generation failed");
+      toast.error(err instanceof Error ? err.message : "General news refresh failed");
+    } finally {
+      setGenerating(null);
+    }
+  }
+
+  async function runRefreshTrendingTopics() {
+    setGenerating("topics");
+    try {
+      const data = await callAdminApi("/api/admin/generate-trending-topics");
+      if (data.message && (data.count ?? 0) === 0) {
+        toast.message(data.message);
+        return;
+      }
+      generationToast(data, "trending topic");
+      markGenerationSuccess("topics", "trending topics", data, "/topics");
+      setUsageRefreshKey((k) => k + 1);
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Trending topics refresh failed");
     } finally {
       setGenerating(null);
     }
@@ -197,11 +242,31 @@ function Admin() {
     setGenerating("official");
     try {
       const data = await callAdminApi("/api/admin/generate-official-updates");
-      generationToast(data, "official post");
-      markGenerationSuccess("official-updates", "official posts", data, "/news");
-      setUsageRefreshKey((k) => k + 1);
+      const added = data.added ?? data.created ?? 0;
+      const deleted = data.deleted ?? 0;
+
+      if (deleted > 0 && added === 0) {
+        toast.success(
+          deleted === 1
+            ? "Removed 1 deleted post from X."
+            : `Removed ${deleted} deleted posts from X.`,
+        );
+        if (data.message) toast.message(data.message);
+      } else if (deleted > 0 && added > 0) {
+        toast.success(
+          `Added ${added} post${added === 1 ? "" : "s"}, removed ${deleted} deleted.`,
+        );
+      } else if (data.message && added === 0) {
+        toast.message(data.message);
+      } else {
+        generationToast(data, "official post");
+      }
+
+      if (added > 0 || deleted > 0) {
+        markGenerationSuccess("official-updates", "official posts", data, "/news");
+      }
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Official updates generation failed");
+      toast.error(err instanceof Error ? err.message : "Official posts refresh failed");
     } finally {
       setGenerating(null);
     }
@@ -210,7 +275,7 @@ function Admin() {
   async function runGeneratePrompts() {
     setGenerating("prompts");
     try {
-      const data = await callAdminApi("/api/admin/generate-prompts", { mode });
+      const data = await callAdminApi("/api/admin/generate-prompts", { proEnabled });
       generationToast(data, "prompt");
       markGenerationSuccess("prompts", "prompts", data, "/prompts");
       setUsageRefreshKey((k) => k + 1);
@@ -323,7 +388,11 @@ function Admin() {
               AI content generation
             </h2>
             <p className="mt-1 text-sm text-muted-foreground">
-              Uses Grok to generate and insert content. Current mode: <span className="font-medium text-foreground">{mode}</span>
+              General news uses a 4-step pipeline: RSS + Grok discovery → catalog dedupe → Grok
+              confirmation → live HTTP check. Trending topics use Google Trends RSS, News RSS, and
+              stored official X posts → Grok (weekly). Tools and prompts use Claude; chat and news use
+              Grok. Official posts use X oEmbed only. Pro depth:{" "}
+              <span className="font-medium text-foreground">{proEnabled ? "on" : "off"}</span>
             </p>
             <div className="mt-4 grid gap-3 sm:grid-cols-1">
               <Button
@@ -349,16 +418,18 @@ function Admin() {
                 variant="secondary"
                 className="h-auto justify-start gap-3 px-5 py-4 text-left"
                 disabled={generating !== null}
-                onClick={() => void runGenerateNews()}
+                onClick={() => void runRefreshGeneralNews()}
               >
-                {generating === "news" ? (
+                {generating === "news-general" ? (
                   <Loader2 className="h-5 w-5 shrink-0 animate-spin" />
                 ) : (
                   <Newspaper className="h-5 w-5 shrink-0" />
                 )}
                 <span>
-                  <span className="block font-semibold">Generate 5 News Items</span>
-                  <span className="block text-xs font-normal opacity-90">Upsert into news_posts table</span>
+                  <span className="block font-semibold">Refresh General AI News</span>
+                  <span className="block text-xs font-normal opacity-90">
+                    RSS + Grok discovery with verification before insert
+                  </span>
                 </span>
               </Button>
               <Button
@@ -374,9 +445,28 @@ function Admin() {
                   <BadgeCheck className="h-5 w-5 shrink-0" />
                 )}
                 <span>
-                  <span className="block font-semibold">Generate Official Updates</span>
+                  <span className="block font-semibold">Refresh Official Posts</span>
                   <span className="block text-xs font-normal opacity-90">
-                    Verified X posts from major AI accounts
+                    Validates seeded post URLs via X oEmbed (no Grok, no scraping)
+                  </span>
+                </span>
+              </Button>
+              <Button
+                size="lg"
+                variant="secondary"
+                className="h-auto justify-start gap-3 px-5 py-4 text-left"
+                disabled={generating !== null}
+                onClick={() => void runRefreshTrendingTopics()}
+              >
+                {generating === "topics" ? (
+                  <Loader2 className="h-5 w-5 shrink-0 animate-spin" />
+                ) : (
+                  <Flame className="h-5 w-5 shrink-0" />
+                )}
+                <span>
+                  <span className="block font-semibold">Refresh Trending Topics</span>
+                  <span className="block text-xs font-normal opacity-90">
+                    Google Trends + News RSS + official posts → Grok (replaces weekly batch)
                   </span>
                 </span>
               </Button>
@@ -428,7 +518,7 @@ function Admin() {
                   Database backup
                 </h2>
                 <p className="mt-1 text-sm text-muted-foreground">
-                  Export tools, news, profiles, chats, favorites, and prompt saves as JSON.
+                  Export tools, news, trending topics, profiles, chats, favorites, and prompt saves as JSON.
                 </p>
               </div>
               <Button onClick={() => void backupDatabase()} disabled={backingUp} className="gap-2">

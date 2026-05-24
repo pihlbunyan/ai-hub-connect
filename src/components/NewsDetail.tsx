@@ -4,6 +4,7 @@ import { NewsFreshness } from "@/components/NewsFreshness";
 import { NewsImage } from "@/components/NewsImage";
 import type { NewsPost } from "@/lib/news";
 import { useApp } from "@/contexts/AppContext";
+import { pickNewsBody } from "@/lib/depth";
 import { cn } from "@/lib/utils";
 
 type NewsDetailProps = {
@@ -14,7 +15,7 @@ type NewsDetailProps = {
 };
 
 export function NewsDetail({ post, className, embedded }: NewsDetailProps) {
-  const { mode } = useApp();
+  const { proEnabled } = useApp();
 
   if (!post) {
     return (
@@ -35,8 +36,7 @@ export function NewsDetail({ post, className, embedded }: NewsDetailProps) {
     );
   }
 
-  const body = mode === "pro" ? post.content : post.summary;
-  const extra = mode === "pro" ? null : post.content !== post.summary ? post.content : null;
+  const { body, extra } = pickNewsBody(post, proEnabled);
 
   return (
     <article
@@ -60,7 +60,7 @@ export function NewsDetail({ post, className, embedded }: NewsDetailProps) {
         <h1
           className={cn(
             "mt-3 font-display font-bold leading-tight tracking-tight",
-            mode === "pro" ? "text-2xl sm:text-3xl" : "text-xl sm:text-2xl",
+            proEnabled ? "text-2xl sm:text-3xl" : "text-xl sm:text-2xl",
           )}
         >
           {post.title}
@@ -69,7 +69,7 @@ export function NewsDetail({ post, className, embedded }: NewsDetailProps) {
         <div
           className={cn(
             "mt-5 flex-1 space-y-4 leading-relaxed text-foreground/90",
-            mode === "discover" ? "text-base" : "text-sm sm:text-base",
+            !proEnabled ? "text-base" : "text-sm sm:text-base",
           )}
         >
           <p className="whitespace-pre-wrap">{body}</p>
@@ -77,7 +77,7 @@ export function NewsDetail({ post, className, embedded }: NewsDetailProps) {
         </div>
 
         <div className="mt-8 flex flex-wrap items-center gap-3 border-t pt-6">
-          <Button asChild size={mode === "discover" ? "default" : "sm"} className="gap-1.5">
+          <Button asChild size={!proEnabled ? "default" : "sm"} className="gap-1.5">
             <a href={post.url} target="_blank" rel="noreferrer noopener">
               Read original <ExternalLink className="h-4 w-4" />
             </a>
