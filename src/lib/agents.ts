@@ -8,6 +8,13 @@
 
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
+import {
+  canRunToolDetailGeneration,
+  getSupabaseServiceRoleClient,
+  hasSupabaseServiceRole,
+  readSupabaseServerEnv,
+} from "@/integrations/supabase/serverClient";
+import { fetchToolBySlug as fetchToolBySlugFromDb } from "@/lib/toolDetailDb.server";
 import type { Database, Json } from "@/integrations/supabase/types";
 import { PROMPT_CATEGORIES, type PromptCategory, type PromptItem } from "@/lib/promptRepo";
 import { contentTimestamps } from "@/lib/contentTimestamps";
@@ -23,15 +30,26 @@ import {
   isValidOfficialPostUrl,
   resolveOfficialAuthorName,
 } from "@/lib/officialUpdates";
+import {
+  isToolDetailProfileStale,
+  KNOWN_TOOL_STRENGTH_HINTS,
+  parseToolDetailProfile,
+  resolveKnownToolStrengthHint,
+  type ToolDetailProfile,
+} from "@/lib/toolDetailProfile";
+import { resolveToolLogoUrl } from "@/lib/toolLogos";
 
 type AdminDb = SupabaseClient<Database>;
 
 /** Prefer service role when configured; otherwise use the authenticated admin client (RLS). */
 function resolveAdminDb(authDb: AdminDb): AdminDb {
-  if (process.env.SUPABASE_SERVICE_ROLE_KEY && process.env.SUPABASE_URL) {
-    return supabaseAdmin;
-  }
+  const serviceClient = getSupabaseServiceRoleClient();
+  if (serviceClient) return serviceClient;
   return authDb;
+}
+
+function getToolDetailWriteClient(): AdminDb | null {
+  return getSupabaseServiceRoleClient();
 }
 
 type Tool = Database["public"]["Tables"]["tools"]["Row"];
@@ -421,6 +439,7 @@ type GrokToolDraft = {
   discover_summary?: string | null;
   pro_summary?: string | null;
   url?: string | null;
+  logo_url?: string | null;
   pro_tags?: string[];
   discover_tags?: string[];
   rating?: number;
@@ -450,6 +469,7 @@ const TOOLS_DISCOVERY_SCHEMA = `{
       "discover_summary": "string",
       "pro_summary": "string",
       "url": "string (official https URL)",
+      "logo_url": "string | null (optional official logo image URL)",
       "pro_tags": ["string"],
       "discover_tags": ["string"],
       "rating": 4.5,
@@ -526,6 +546,11 @@ function draftToToolFields(
   slug: string,
   safety?: { score: number; notes: string | null },
 ): ToolInsert {
+  const logo_url =
+    draft.logo_url?.trim() ||
+    resolveToolLogoUrl(slug, draft.name, null) ||
+    null;
+
   return {
     name: draft.name.trim(),
     slug,
@@ -536,6 +561,7 @@ function draftToToolFields(
     discover_summary: (draft.discover_summary ?? draft.description_short).trim(),
     pro_summary: (draft.pro_summary ?? draft.description_short).trim(),
     url: draft.url?.trim() || null,
+    logo_url,
     pro_tags: draft.pro_tags ?? [],
     discover_tags: draft.discover_tags ?? [],
     rating: Math.min(5, Math.max(1, draft.rating ?? 4.5)),
@@ -839,6 +865,301 @@ export async function generateTools(
     }
     throw err;
   }
+}
+
+// ---------------------------------------------------------------------------
+// generateToolDetail — rich detail page sections
+// ---------------------------------------------------------------------------
+
+const TOOL_DETAIL_JSON_SCHEMA = `{
+  "overview": {
+    "discover": "string (2-4 sentences: maker, how long around, key milestones, target audience — clear language)",
+    "pro": "string (3-5 sentences: same topics with technical depth, stack fit, enterprise notes)"
+  },
+  "best_for": {
+    "discover": ["3-5 strings like Best for beginners, Great for marketing teams"],
+    "pro": ["3-5 strings like Most valuable for platform engineers, Ideal for ML researchers"]
+  },
+  "strengths": {
+    "discover": ["3-5 honest bullets — what it excels at, plain language"],
+    "pro": ["3-5 bullets — technical strengths, capabilities, differentiators"]
+  },
+  "weaknesses": {
+    "discover": ["2-4 honest but professional bullets — limitations in plain language"],
+    "pro": ["2-4 bullets — technical gaps, lock-in, ops caveats"]
+  },
+  "pricing": {
+    "discover": "string (free tier, typical paid plans, who pays — no hype)",
+    "pro": "string (tier + API/unit economics, enterprise, billing model if known)"
+  }
+}`;
+
+type GrokToolDetailDraft = {
+  overview?: { discover?: string; pro?: string };
+  best_for?: { discover?: string[]; pro?: string[] };
+  strengths?: { discover?: string[]; pro?: string[] };
+  weaknesses?: { discover?: string[]; pro?: string[] };
+  pricing?: { discover?: string; pro?: string };
+};
+
+function normalizeToolDetailDraft(draft: GrokToolDetailDraft): ToolDetailProfile {
+  const pickText = (slice?: { discover?: string; pro?: string }) => ({
+    discover: slice?.discover?.trim() ?? "",
+    pro: slice?.pro?.trim() ?? "",
+  });
+
+  const pickList = (slice?: { discover?: string[]; pro?: string[] }) => ({
+    discover: (slice?.discover ?? []).map((s) => s.trim()).filter(Boolean).slice(0, 8),
+    pro: (slice?.pro ?? []).map((s) => s.trim()).filter(Boolean).slice(0, 8),
+  });
+
+  return {
+    overview: pickText(draft.overview),
+    best_for: pickList(draft.best_for),
+    strengths: pickList(draft.strengths),
+    weaknesses: pickList(draft.weaknesses),
+    pricing: pickText(draft.pricing),
+    generated_at: new Date().toISOString(),
+  };
+}
+
+const toolDetailRefreshInFlight = new Map<string, Promise<{ tool: Tool; profile: ToolDetailProfile }>>();
+
+export async function getToolBySlug(slug: string): Promise<Tool | null> {
+  return fetchToolBySlugFromDb(slug);
+}
+
+async function persistToolDetailProfile(
+  tool: Pick<Tool, "id" | "slug" | "name" | "logo_url">,
+  profile: ToolDetailProfile,
+): Promise<void> {
+  const logo_url = resolveToolLogoUrl(tool.slug, tool.name, tool.logo_url);
+  const patch: {
+    detail_profile: Json;
+    logo_url?: string;
+    updated_at?: string;
+  } = {
+    detail_profile: profile as unknown as Json,
+    ...contentTimestamps(false),
+  };
+
+  if (logo_url && !tool.logo_url?.trim()) {
+    patch.logo_url = logo_url;
+  }
+
+  const writeDb = getToolDetailWriteClient();
+  if (!writeDb) {
+    console.warn(
+      "[agents] persistToolDetailProfile skipped — SUPABASE_SERVICE_ROLE_KEY required for writes",
+    );
+    return;
+  }
+
+  const { error: updateError } = await writeDb.from("tools").update(patch).eq("id", tool.id);
+
+  if (updateError) {
+    console.error("[agents] persistToolDetailProfile failed:", updateError.message);
+    throw new Error(`Failed to persist tool detail_profile: ${updateError.message}`);
+  }
+}
+
+/** Regenerate and save detail_profile for one tool (by slug). Dedupes concurrent refreshes. */
+export async function refreshToolDetailProfileBySlug(
+  slug: string,
+  options: { force?: boolean } = {},
+): Promise<{ tool: Tool; profile: ToolDetailProfile }> {
+  const normalized = slug.trim().toLowerCase();
+  const inFlight = toolDetailRefreshInFlight.get(normalized);
+  if (inFlight) return inFlight;
+
+  const work = (async () => {
+    const tool = await getToolBySlug(normalized);
+    if (!tool) throw new Error("Tool not found");
+
+    const existing = parseToolDetailProfile(tool.detail_profile);
+    if (!options.force && existing && !isToolDetailProfileStale(existing)) {
+      return { tool, profile: existing };
+    }
+
+    const profile = await generateToolDetailProfile(tool);
+
+    try {
+      await persistToolDetailProfile(tool, profile);
+    } catch (persistErr) {
+      console.warn("[agents] refreshToolDetailProfileBySlug — profile generated but not saved:", persistErr);
+    }
+
+    const resolvedLogo = resolveToolLogoUrl(tool.slug, tool.name, tool.logo_url);
+    const updated: Tool = {
+      ...tool,
+      detail_profile: profile as unknown as Json,
+      logo_url: tool.logo_url?.trim() || resolvedLogo || tool.logo_url,
+    };
+    console.info("[agents] refreshToolDetailProfileBySlug success", {
+      slug: normalized,
+      generated_at: profile.generated_at,
+    });
+    return { tool: updated, profile };
+  })();
+
+  toolDetailRefreshInFlight.set(normalized, work);
+  try {
+    return await work;
+  } finally {
+    toolDetailRefreshInFlight.delete(normalized);
+  }
+}
+
+function buildKnownToolReferenceBlock(): string {
+  const lines = Object.entries(KNOWN_TOOL_STRENGTH_HINTS).map(([slug, hint]) => {
+    const coding = hint.codingRelevant ? " [CODING-RELEVANT]" : "";
+    return `- ${slug}${coding}: strengths → ${hint.strengths.slice(0, 3).join("; ")} | best_for → ${hint.best_for.slice(0, 2).join("; ")}`;
+  });
+  return lines.join("\n");
+}
+
+function buildToolSpecificGuidance(tool: Tool): string {
+  const hint = resolveKnownToolStrengthHint(tool.slug, tool.name);
+  const categoryCoding =
+    /coding|code|developer|ide|copilot|build/i.test(tool.category) ||
+    /code|copilot|cursor|artifact|dev/i.test(tool.slug);
+
+  const parts: string[] = [];
+
+  if (hint) {
+    parts.push(
+      `MATCHED KNOWN TOOL (${tool.slug} / ${tool.name}). You MUST reflect these real-world strengths in strengths.pro and strengths.discover (rephrase, do not omit core themes):`,
+      hint.strengths.map((s) => `  • ${s}`).join("\n"),
+      `You MUST include these themes in best_for (rephrase as short labels):`,
+      hint.best_for.map((s) => `  • ${s}`).join("\n"),
+    );
+    if (hint.codingRelevant) {
+      parts.push(
+        `CODING IS A TOP-TIER USE CASE for this tool. At least 2 items in strengths AND at least 1 item in best_for must explicitly mention software development, coding, or engineering workflows.`,
+      );
+    }
+  } else if (categoryCoding) {
+    parts.push(
+      `This tool is in a coding/build category. Include concrete software-development strengths (IDE integration, code generation, repo context, etc.) in strengths and best_for when accurate.`,
+    );
+  }
+
+  return parts.length ? `\n\nTool-specific guidance:\n${parts.join("\n")}` : "";
+}
+
+export async function generateToolDetailProfile(tool: Tool): Promise<ToolDetailProfile> {
+  const context = {
+    slug: tool.slug,
+    name: tool.name,
+    vendor: tool.vendor,
+    category: tool.category,
+    url: tool.url,
+    cost_tier: tool.cost_tier,
+    audience: tool.audience,
+    rating: tool.rating,
+    description_short: tool.description_short,
+    description_long: tool.description_long,
+    discover_summary: tool.discover_summary,
+    pro_summary: tool.pro_summary,
+    pro_tags: tool.pro_tags,
+    discover_tags: tool.discover_tags,
+  };
+
+  const knownReference = buildKnownToolReferenceBlock();
+  const toolGuidance = buildToolSpecificGuidance(tool);
+
+  const system = `You are PiHLAI's AI tool analyst. Return ONLY valid JSON matching this schema (no markdown):
+${TOOL_DETAIL_JSON_SCHEMA}
+
+Known major tools — use these as ground truth for strengths and best_for when the tool matches (by slug/name). Do not contradict them; expand with honest nuance in weaknesses:
+${knownReference}
+
+Rules:
+- Be accurate and honest. Use real product knowledge; do not invent pricing numbers unless widely known — say "contact sales" when uncertain.
+- Overview must mention: who makes it, approximate tenure/milestones, and target audience.
+- best_for: 3-5 short labels (e.g. "Best for professional developers", "Ideal for coding and code review").
+- strengths: 3-5 concrete capabilities — prefer specific workflows (coding, agents, search, image gen) over vague praise.
+- For coding-centric tools (Claude, ChatGPT, Copilot, Cursor, etc.), strengths and best_for MUST prominently feature software engineering.
+- weaknesses: 2-4 honest, professional limitations (not generic fluff).
+- pricing.discover and pricing.pro should align with cost_tier (${tool.cost_tier}) but add specifics when known.${toolGuidance}`;
+
+  const user = `Generate a detail profile for this AI tool:\n${JSON.stringify(context, null, 2)}`;
+
+  const result = await callGrokJson<GrokToolDetailDraft>(system, user, "generateToolDetail", {
+    temperature: 0.35,
+  });
+
+  const profile = normalizeToolDetailDraft(result);
+  if (!profile.overview.discover && !profile.overview.pro) {
+    throw new Error("Tool detail generation returned empty overview");
+  }
+
+  return profile;
+}
+
+export async function ensureToolDetailProfile(
+  slug: string,
+  options: { force?: boolean; allowStale?: boolean } = {},
+): Promise<{
+  tool: Tool | null;
+  profile: ToolDetailProfile | null;
+  cached: boolean;
+  stale: boolean;
+  refreshing: boolean;
+}> {
+  const tool = await getToolBySlug(slug);
+  if (!tool) return { tool: null, profile: null, cached: false, stale: false, refreshing: false };
+
+  const existing = parseToolDetailProfile(tool.detail_profile);
+  const stale = isToolDetailProfileStale(existing);
+
+  if (existing && !options.force && (!stale || options.allowStale)) {
+    return { tool, profile: existing, cached: true, stale, refreshing: stale && !options.allowStale };
+  }
+
+  if (!canRunToolDetailGeneration()) {
+    return {
+      tool,
+      profile: existing,
+      cached: Boolean(existing),
+      stale,
+      refreshing: false,
+    };
+  }
+
+  try {
+    const { tool: updated, profile } = await refreshToolDetailProfileBySlug(slug, { force: true });
+    return { tool: updated, profile, cached: false, stale: false, refreshing: false };
+  } catch (err) {
+    console.error("[agents] ensureToolDetailProfile failed:", err);
+    return {
+      tool,
+      profile: existing,
+      cached: Boolean(existing),
+      stale,
+      refreshing: false,
+    };
+  }
+}
+
+/** Fire-and-forget background refresh when profile is missing or stale. */
+export function triggerToolDetailBackgroundRefresh(slug: string): void {
+  if (!process.env.GROK_API_KEY?.trim()) {
+    console.warn("[agents] triggerToolDetailBackgroundRefresh skipped — GROK_API_KEY missing");
+    return;
+  }
+  if (!hasSupabaseServiceRole()) {
+    const env = readSupabaseServerEnv();
+    console.warn(
+      "[agents] triggerToolDetailBackgroundRefresh skipped — service role required to save detail_profile",
+      { hasUrl: Boolean(env.url), hasAnon: Boolean(env.anonKey) },
+    );
+    return;
+  }
+
+  void refreshToolDetailProfileBySlug(slug, { force: true }).catch((err) => {
+    console.error("[agents] triggerToolDetailBackgroundRefresh failed:", err);
+  });
 }
 
 // ---------------------------------------------------------------------------

@@ -4,6 +4,7 @@ import { cn } from "@/lib/utils";
 import type { Database } from "@/integrations/supabase/types";
 import { useApp } from "@/contexts/AppContext";
 import { formatToolLastUpdated, isWithin48Hours } from "@/lib/contentFreshness";
+import { ToolLogo } from "@/components/ToolLogo";
 
 export type Tool = Database["public"]["Tables"]["tools"]["Row"];
 
@@ -30,9 +31,7 @@ export function ToolCard({ tool, favorite, onToggleFavorite }: { tool: Tool; fav
     >
       <div className="flex items-start justify-between gap-3">
         <div className="flex items-center gap-3">
-          <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-primary/20 to-accent/30 font-display text-lg font-bold text-foreground">
-            {tool.name.slice(0, 1)}
-          </div>
+          <ToolLogo name={tool.name} slug={tool.slug} logoUrl={tool.logo_url} size="sm" />
           <div className="min-w-0">
             <div className="flex flex-wrap items-center gap-1.5">
               <h3 className="font-semibold leading-tight">{tool.name}</h3>

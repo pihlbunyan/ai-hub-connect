@@ -314,6 +314,7 @@ export type Database = {
           created_at: string
           description_long: string | null
           description_short: string
+          detail_profile: Json | null
           id: string
           discover_summary: string | null
           discover_tags: string[]
@@ -336,6 +337,7 @@ export type Database = {
           created_at?: string
           description_long?: string | null
           description_short: string
+          detail_profile?: Json | null
           id?: string
           discover_summary?: string | null
           discover_tags?: string[]
@@ -358,6 +360,7 @@ export type Database = {
           created_at?: string
           description_long?: string | null
           description_short?: string
+          detail_profile?: Json | null
           id?: string
           discover_summary?: string | null
           discover_tags?: string[]

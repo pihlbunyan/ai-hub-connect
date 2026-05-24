@@ -1,7 +1,7 @@
 /**
  * Server-only Grok usage logging.
  */
-import { supabaseAdmin } from "@/integrations/supabase/client.server";
+import { getSupabaseServiceRoleClient } from "@/integrations/supabase/serverClient";
 import {
   estimateGrokCost,
   GROK_MODEL,
@@ -23,7 +23,10 @@ export async function logGrokUsage(params: LogGrokUsageParams): Promise<void> {
   const usageDate = new Date().toISOString().slice(0, 10);
 
   try {
-    const { error } = await supabaseAdmin.from("grok_usage_logs").insert({
+    const db = getSupabaseServiceRoleClient();
+    if (!db) return;
+
+    const { error } = await db.from("grok_usage_logs").insert({
       usage_date: usageDate,
       tokens_in: tokensIn,
       tokens_out: tokensOut,

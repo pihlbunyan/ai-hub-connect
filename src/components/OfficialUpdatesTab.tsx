@@ -1,9 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
-import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
-import { toast } from "sonner";
-import { RefreshCw } from "lucide-react";
 import { subscribeContentRefresh } from "@/lib/contentRefresh";
 import {
   OFFICIAL_POST_SELECT,
@@ -15,41 +12,30 @@ import {
 import { OfficialAvatar } from "@/components/OfficialAvatar";
 import { OfficialUpdateRow } from "@/components/OfficialUpdateRow";
 
-type OfficialUpdatesTabProps = {
-  onRefreshingChange?: (refreshing: boolean) => void;
-};
-
-export function OfficialUpdatesTab({ onRefreshingChange }: OfficialUpdatesTabProps) {
+export function OfficialUpdatesTab() {
   const [posts, setPosts] = useState<OfficialSocialPost[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  const loadPosts = useCallback(
-    async (isRefresh = false) => {
-      if (isRefresh) onRefreshingChange?.(true);
-      else setLoading(true);
-      setError(null);
+  const loadPosts = useCallback(async (background = false) => {
+    if (!background) setLoading(true);
+    setError(null);
 
-      const { data, error: fetchError } = await supabase
-        .from("official_social_posts")
-        .select(OFFICIAL_POST_SELECT)
-        .order("posted_at", { ascending: false })
-        .limit(40);
+    const { data, error: fetchError } = await supabase
+      .from("official_social_posts")
+      .select(OFFICIAL_POST_SELECT)
+      .order("posted_at", { ascending: false })
+      .limit(40);
 
-      if (fetchError) {
-        setError(fetchError.message);
-        setPosts([]);
-        if (isRefresh) toast.error(fetchError.message);
-      } else {
-        setPosts(data ?? []);
-        if (isRefresh) toast.success("Official updates refreshed");
-      }
+    if (fetchError) {
+      setError(fetchError.message);
+      setPosts([]);
+    } else {
+      setPosts(data ?? []);
+    }
 
-      setLoading(false);
-      onRefreshingChange?.(false);
-    },
-    [onRefreshingChange],
-  );
+    setLoading(false);
+  }, []);
 
   useEffect(() => {
     void loadPosts();
@@ -109,13 +95,9 @@ export function OfficialUpdatesTab({ onRefreshingChange }: OfficialUpdatesTabPro
         <div className="rounded-2xl border border-dashed bg-muted/15 px-6 py-12 text-center">
           <p className="text-lg font-medium">No official updates yet</p>
           <p className="mx-auto mt-2 max-w-md text-sm text-muted-foreground">
-            Posts from monitored accounts will appear here after discovery. An admin can run{" "}
-            <span className="font-medium text-foreground">Generate Official Updates</span> from the Admin panel.
+            Posts from monitored accounts appear here after{" "}
+            <span className="font-medium text-foreground">Generate Official Updates</span> runs in Admin.
           </p>
-          <Button type="button" variant="outline" className="mt-5 gap-2" onClick={() => void loadPosts(true)}>
-            <RefreshCw className="h-4 w-4" />
-            Refresh
-          </Button>
         </div>
       ) : (
         <ul className="flex flex-col gap-2.5 sm:gap-3" aria-label="Official updates">

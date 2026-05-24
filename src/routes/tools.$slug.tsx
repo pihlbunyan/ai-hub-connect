@@ -1,32 +1,165 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import type { Database } from "@/integrations/supabase/types";
 import { useApp } from "@/contexts/AppContext";
 import { Button } from "@/components/ui/button";
-import { ExternalLink, ArrowLeft, Heart, MessageSquarePlus } from "lucide-react";
+import { ToolDetailSections } from "@/components/ToolDetailSections";
+import { ToolLogo } from "@/components/ToolLogo";
+import { ExternalLink, ArrowLeft, Heart, MessageSquarePlus, RefreshCw } from "lucide-react";
 import { toast } from "sonner";
+import {
+  formatCostTierLabel,
+  formatDetailLastUpdated,
+  isToolDetailProfileStale,
+  parseToolDetailProfile,
+  pickToolDetailForMode,
+  type ToolDetailProfile,
+  type ToolDetailView,
+} from "@/lib/toolDetailProfile";
+import { loadToolDetailPage } from "@/lib/toolDetailPage.server";
+import { cn } from "@/lib/utils";
 
 type Tool = Database["public"]["Tables"]["tools"]["Row"];
 
-export const Route = createFileRoute("/tools/$slug")({ component: ToolDetail });
+export const Route = createFileRoute("/tools/$slug")({
+  loader: ({ params }) => loadToolDetailPage(params.slug),
+  component: ToolDetail,
+});
+
+function buildFallbackDetail(tool: Tool, mode: "pro" | "discover"): ToolDetailView {
+  const overview =
+    mode === "pro"
+      ? [tool.pro_summary, tool.description_long, tool.description_short].filter(Boolean).join("\n\n")
+      : [tool.discover_summary, tool.description_short].filter(Boolean).join("\n\n");
+
+  const audienceHints: string[] = [];
+  if (tool.audience === "discover" || tool.audience === "both") {
+    audienceHints.push("Accessible for people new to AI tools");
+  }
+  if (tool.audience === "pro" || tool.audience === "both") {
+    audienceHints.push("Useful for technical and professional workflows");
+  }
+
+  return {
+    overview: overview || "No extended overview is available yet.",
+    best_for: audienceHints,
+    strengths: [],
+    weaknesses: [],
+    pricing: `Catalogued as ${formatCostTierLabel(tool.cost_tier)}. Check ${tool.vendor ?? tool.name} for live pricing.`,
+  };
+}
 
 function ToolDetail() {
   const { slug } = Route.useParams();
+  const loaderData = Route.useLoaderData();
   const { t, mode, user } = useApp();
   const navigate = useNavigate();
-  const [tool, setTool] = useState<Tool | null>(null);
-  const [loading, setLoading] = useState(true);
+
+  const [tool, setTool] = useState(loaderData.tool);
+  const [detailProfile, setDetailProfile] = useState<ToolDetailProfile | null>(loaderData.profile);
+  const [generatedAt, setGeneratedAt] = useState(loaderData.generatedAt);
+  const refreshAvailable = loaderData.refreshAvailable;
+  const [detailLoading, setDetailLoading] = useState(
+    Boolean(loaderData.tool) && !loaderData.profile && refreshAvailable,
+  );
+  const [backgroundRefreshing, setBackgroundRefreshing] = useState(
+    Boolean(loaderData.tool) &&
+      refreshAvailable &&
+      (loaderData.stale || !loaderData.profile),
+  );
+  const [manualRefreshing, setManualRefreshing] = useState(false);
   const [favorite, setFavorite] = useState(false);
   const [favLoading, setFavLoading] = useState(false);
-  console.log("Tool data:", tool);
 
   useEffect(() => {
-    supabase.from("tools").select("*").eq("slug", slug).maybeSingle().then(({ data }) => {
+    setTool(loaderData.tool);
+    setDetailProfile(loaderData.profile);
+    setGeneratedAt(loaderData.generatedAt);
+    setDetailLoading(Boolean(loaderData.tool) && !loaderData.profile && loaderData.refreshAvailable);
+    setBackgroundRefreshing(
+      Boolean(loaderData.tool) &&
+        loaderData.refreshAvailable &&
+        (loaderData.stale || !loaderData.profile),
+    );
+  }, [loaderData]);
+
+  useEffect(() => {
+    if (loaderData.tool || !slug) return;
+
+    let cancelled = false;
+    void (async () => {
+      const { data, error } = await supabase.from("tools").select("*").eq("slug", slug).maybeSingle();
+      if (cancelled || error || !data) return;
+
       setTool(data);
-      setLoading(false);
-    });
-  }, [slug]);
+      const profile = parseToolDetailProfile(data.detail_profile);
+      setDetailProfile(profile);
+      setGeneratedAt(profile?.generated_at ?? null);
+      setDetailLoading(!profile && loaderData.refreshAvailable);
+      setBackgroundRefreshing(
+        loaderData.refreshAvailable && (!profile || isToolDetailProfileStale(profile)),
+      );
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [loaderData.tool, loaderData.refreshAvailable, slug]);
+
+  const detailView = useMemo(() => {
+    if (detailProfile) return pickToolDetailForMode(detailProfile, mode);
+    if (tool) return buildFallbackDetail(tool, mode);
+    return null;
+  }, [detailProfile, tool, mode]);
+
+  const lastUpdatedLabel = formatDetailLastUpdated(generatedAt);
+
+  const applyProfileResponse = useCallback((profileRaw: unknown) => {
+    const profile = parseToolDetailProfile(profileRaw as Tool["detail_profile"]);
+    if (!profile) return false;
+    setDetailProfile(profile);
+    setGeneratedAt(profile.generated_at);
+    setDetailLoading(false);
+    setBackgroundRefreshing(false);
+    return true;
+  }, []);
+
+  const pollForFreshProfile = useCallback(async () => {
+    const res = await fetch(`/api/public/tool-detail?slug=${encodeURIComponent(slug)}`);
+    if (!res.ok) return false;
+    const data = (await res.json()) as { profile?: unknown; stale?: boolean; generated_at?: string };
+    if (data.profile && !data.stale) {
+      return applyProfileResponse(data.profile);
+    }
+    return false;
+  }, [slug, applyProfileResponse]);
+
+  useEffect(() => {
+    if (!backgroundRefreshing || !tool || !refreshAvailable) return;
+
+    let cancelled = false;
+    let attempts = 0;
+    const maxAttempts = 20;
+
+    const tick = async () => {
+      if (cancelled || attempts >= maxAttempts) {
+        if (!cancelled) setBackgroundRefreshing(false);
+        return;
+      }
+      attempts += 1;
+      const done = await pollForFreshProfile();
+      if (cancelled) return;
+      if (done) return;
+      window.setTimeout(tick, 3000);
+    };
+
+    void tick();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [backgroundRefreshing, tool, refreshAvailable, pollForFreshProfile]);
 
   useEffect(() => {
     if (!user || !tool?.id) {
@@ -42,35 +175,66 @@ function ToolDetail() {
       .then(({ data }) => setFavorite(Boolean(data)));
   }, [user, tool?.id]);
 
-  if (loading) return <div className="mx-auto max-w-4xl px-6 py-20 text-muted-foreground">Loading…</div>;
+  const safeTool = useMemo(() => {
+    if (tool) return tool;
+    return {
+      id: "fallback-tool",
+      name: "Unknown Tool",
+      slug,
+      vendor: null,
+      category: "Unknown",
+      description_short: "Tool details are currently unavailable.",
+      description_long: null,
+      discover_summary: null,
+      pro_summary: null,
+      detail_profile: null,
+      url: null,
+      logo_url: null,
+      pro_tags: [],
+      discover_tags: [],
+      rating: 0,
+      cost_tier: "free" as const,
+      audience: "both" as const,
+      safety_notes: null,
+      safety_score: null,
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    } satisfies Tool;
+  }, [tool, slug]);
 
-  const fallbackTool: Tool = {
-    id: "fallback-tool",
-    name: "Unknown Tool",
-    slug,
-    vendor: null,
-    category: "Unknown",
-    description_short: "Tool details are currently unavailable.",
-    description_long: null,
-    discover_summary: null,
-    pro_summary: null,
-    url: null,
-    logo_url: null,
-    pro_tags: [],
-    discover_tags: [],
-    rating: 0,
-    cost_tier: "free",
-    audience: "both",
-    created_at: new Date().toISOString(),
-  };
-
-  const safeTool = tool ?? fallbackTool;
   const summary = mode === "pro" ? safeTool.pro_summary : safeTool.discover_summary;
   const tags = (mode === "pro" ? safeTool.pro_tags : safeTool.discover_tags) ?? [];
+  const costTierLabel = formatCostTierLabel(safeTool.cost_tier);
+
   const chatPrompt =
     mode === "pro"
       ? `Tell me about ${safeTool.name} and how to use it best. Include practical workflows, tradeoffs, and advanced tips.`
       : `Tell me about ${safeTool.name} and how to use it best. Keep it clear and practical for getting started.`;
+
+  async function refreshDetails() {
+    setManualRefreshing(true);
+    try {
+      const res = await fetch(`/api/public/tool-detail?slug=${encodeURIComponent(slug)}`, {
+        method: "POST",
+      });
+      const data = (await res.json().catch(() => ({}))) as { error?: string; profile?: unknown };
+      if (!res.ok) {
+        if (data.profile && applyProfileResponse(data.profile)) {
+          toast.message(data.error ?? "Could not refresh details — showing saved information");
+          return;
+        }
+        throw new Error(data.error ?? "Could not refresh details right now");
+      }
+      if (!applyProfileResponse(data.profile)) {
+        throw new Error("Refresh returned no profile");
+      }
+      toast.success("Details updated");
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Could not refresh details");
+    } finally {
+      setManualRefreshing(false);
+    }
+  }
 
   async function toggleFavorite() {
     if (!user) {
@@ -98,28 +262,86 @@ function ToolDetail() {
     setFavLoading(false);
   }
 
+  if (!tool && !loaderData.tool) {
+    return (
+      <div className="mx-auto max-w-4xl px-6 py-20 text-muted-foreground">
+        <Link to="/tools" className="mb-6 inline-flex items-center gap-1 text-sm hover:text-foreground">
+          <ArrowLeft className="h-4 w-4" /> {t.navDirectory}
+        </Link>
+        Tool not found.
+      </div>
+    );
+  }
+
+  const showStaleHint =
+    Boolean(detailProfile) && isToolDetailProfileStale(detailProfile) && backgroundRefreshing;
+
   return (
     <div className="mx-auto max-w-4xl px-6 py-12">
-      <Link to="/tools" className="mb-6 inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground">
+      <Link
+        to="/tools"
+        className="mb-6 inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground"
+      >
         <ArrowLeft className="h-4 w-4" /> {t.navDirectory}
       </Link>
 
-      <div className="rounded-3xl border bg-card p-8 shadow-card">
+      <div className="rounded-3xl border bg-card p-6 shadow-card sm:p-8">
         {!tool && (
           <div className="mb-6 rounded-xl border border-dashed bg-muted/30 px-4 py-3 text-sm text-muted-foreground">
-            Tool not found. Showing fallback details for debugging.
+            Tool not found in the directory.
           </div>
         )}
-        <div className="flex flex-wrap items-center gap-4">
-          <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-gradient-to-br from-primary/20 to-accent/30 font-display text-3xl font-bold">
-            {safeTool.name.slice(0, 1)}
-          </div>
-          <div className="flex-1">
-            <h1 className="font-display text-3xl font-bold">{safeTool.name}</h1>
-            <p className="text-sm text-muted-foreground">{safeTool.vendor} · {safeTool.category}</p>
+
+        <div className="flex flex-wrap items-start gap-4">
+          <ToolLogo name={safeTool.name} slug={safeTool.slug} logoUrl={safeTool.logo_url} size="hero" />
+          <div className="min-w-0 flex-1">
+            <h1 className="font-display text-3xl font-bold tracking-tight">{safeTool.name}</h1>
+            <p className="mt-1 text-sm text-muted-foreground">
+              {safeTool.vendor ? `${safeTool.vendor} · ` : ""}
+              {safeTool.category}
+            </p>
+            <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1">
+              {lastUpdatedLabel && (
+                <p className="text-xs text-muted-foreground">
+                  Last updated: {lastUpdatedLabel}
+                  {showStaleHint ? " · refreshing in background" : ""}
+                </p>
+              )}
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                className="h-7 gap-1.5 px-2 text-xs text-muted-foreground"
+                disabled={manualRefreshing || !tool || !refreshAvailable}
+                title={
+                  !refreshAvailable
+                    ? "AI refresh requires server configuration"
+                    : undefined
+                }
+                onClick={() => void refreshDetails()}
+              >
+                <RefreshCw
+                  className={cn("h-3.5 w-3.5", (manualRefreshing || backgroundRefreshing) && "animate-spin")}
+                />
+                Refresh Details
+              </Button>
+            </div>
+            <div className="mt-3 flex flex-wrap items-center gap-2 text-sm">
+              <span className="font-medium text-foreground">★ {Number(safeTool.rating).toFixed(1)}</span>
+              <span className="text-muted-foreground/50">·</span>
+              <span className="rounded-full border bg-muted/40 px-2 py-0.5 text-xs font-medium capitalize">
+                {costTierLabel}
+              </span>
+              {mode === "pro" && safeTool.safety_score != null && (
+                <span className="rounded-full bg-sky-500/15 px-2 py-0.5 text-xs font-medium text-sky-700 dark:text-sky-300">
+                  Safety {safeTool.safety_score}/10
+                </span>
+              )}
+              <AudiencePill audience={safeTool.audience} />
+            </div>
           </div>
           {safeTool.url && (
-            <Button asChild>
+            <Button asChild className="shrink-0">
               <a href={safeTool.url} target="_blank" rel="noopener noreferrer">
                 Visit <ExternalLink className="h-4 w-4" />
               </a>
@@ -148,40 +370,60 @@ function ToolDetail() {
             disabled={favLoading}
             className="gap-2"
           >
-            <Heart className={`h-4 w-4 ${favorite ? "fill-current" : ""}`} />
+            <Heart className={cn("h-4 w-4", favorite && "fill-current")} />
             {favorite ? "Saved" : "Save"}
           </Button>
         </div>
 
-        <p className={`mt-6 text-${mode === "discover" ? "lg" : "base"} text-foreground`}>
+        <p
+          className={cn(
+            "mt-5 text-foreground/90",
+            mode === "discover" ? "text-base leading-relaxed" : "text-sm leading-relaxed",
+          )}
+        >
           {summary || safeTool.description_short}
         </p>
 
-        <div className="mt-6 flex flex-wrap gap-2">
-          {(tags || []).map((tg) => (
-            <span key={tg} className="rounded-full border bg-muted/40 px-2.5 py-1 text-xs text-muted-foreground">
-              {tg}
-            </span>
-          ))}
-        </div>
-
-        {mode === "pro" && (
-          <div className="mt-8 grid gap-4 sm:grid-cols-3">
-            <Stat label="Rating" value={`★ ${Number(safeTool.rating).toFixed(1)}`} />
-            <Stat label="Cost tier" value={safeTool.cost_tier} />
-            <Stat label="Audience" value={safeTool.audience} />
+        {tags.length > 0 && (
+          <div className="mt-4 flex flex-wrap gap-2">
+            {tags.map((tg) => (
+              <span
+                key={tg}
+                className="rounded-full border bg-muted/40 px-2.5 py-1 text-xs text-muted-foreground"
+              >
+                {tg}
+              </span>
+            ))}
           </div>
         )}
       </div>
+
+      <ToolDetailSections
+        detail={detailView}
+        loading={detailLoading && Boolean(tool) && refreshAvailable}
+        costTierLabel={costTierLabel}
+      />
     </div>
   );
 }
 
-function Stat({ label, value }: { label: string; value: string }) {
+function AudiencePill({ audience }: { audience: Tool["audience"] }) {
+  const { mode } = useApp();
+  if (audience === "both") {
+    return (
+      <span className="rounded-full bg-muted/50 px-2 py-0.5 text-xs text-muted-foreground">All audiences</span>
+    );
+  }
+  if (audience === "pro") {
+    return (
+      <span className="rounded-full bg-pro/15 px-2 py-0.5 text-xs text-pro">
+        {mode === "pro" ? "Pro-focused" : "Advanced"}
+      </span>
+    );
+  }
   return (
-    <div className="rounded-xl border bg-background/50 p-4">
-      <div className="text-xs uppercase tracking-wide text-muted-foreground">{label}</div>
-      <div className="mt-1 font-display text-xl font-semibold capitalize">{value}</div>
-    </div>
+    <span className="rounded-full bg-discover/25 px-2 py-0.5 text-xs text-discover-foreground">
+      {mode === "pro" ? "Discover-friendly" : "Beginner-friendly"}
+    </span>
   );
 }

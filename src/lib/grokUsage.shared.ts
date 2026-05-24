@@ -10,6 +10,7 @@ const OUTPUT_COST_PER_M_TOKENS = 15;
 export type GrokAgentType =
   | "generateTools"
   | "generateToolsSafety"
+  | "generateToolDetail"
   | "generateNews"
   | "generateNewsCredibility"
   | "generateOfficialUpdates"

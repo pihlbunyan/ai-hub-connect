@@ -20,6 +20,7 @@ import { Route as IndexRouteImport } from './routes/index'
 import { Route as ToolsIndexRouteImport } from './routes/tools.index'
 import { Route as TopicsSlugRouteImport } from './routes/topics.$slug'
 import { Route as ToolsSlugRouteImport } from './routes/tools.$slug'
+import { Route as ApiPublicToolDetailRouteImport } from './routes/api.public.tool-detail'
 import { Route as ApiPublicSiteHostRouteImport } from './routes/api.public.site-host'
 import { Route as ApiPublicChatAggregateRouteImport } from './routes/api.public.chat-aggregate'
 import { Route as ApiAdminGenerateToolsRouteImport } from './routes/api/admin/generate-tools'
@@ -82,6 +83,11 @@ const ToolsSlugRoute = ToolsSlugRouteImport.update({
   path: '/tools/$slug',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiPublicToolDetailRoute = ApiPublicToolDetailRouteImport.update({
+  id: '/api/public/tool-detail',
+  path: '/api/public/tool-detail',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiPublicSiteHostRoute = ApiPublicSiteHostRouteImport.update({
   id: '/api/public/site-host',
   path: '/api/public/site-host',
@@ -132,6 +138,7 @@ export interface FileRoutesByFullPath {
   '/api/admin/generate-tools': typeof ApiAdminGenerateToolsRoute
   '/api/public/chat-aggregate': typeof ApiPublicChatAggregateRoute
   '/api/public/site-host': typeof ApiPublicSiteHostRoute
+  '/api/public/tool-detail': typeof ApiPublicToolDetailRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -151,6 +158,7 @@ export interface FileRoutesByTo {
   '/api/admin/generate-tools': typeof ApiAdminGenerateToolsRoute
   '/api/public/chat-aggregate': typeof ApiPublicChatAggregateRoute
   '/api/public/site-host': typeof ApiPublicSiteHostRoute
+  '/api/public/tool-detail': typeof ApiPublicToolDetailRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -171,6 +179,7 @@ export interface FileRoutesById {
   '/api/admin/generate-tools': typeof ApiAdminGenerateToolsRoute
   '/api/public/chat-aggregate': typeof ApiPublicChatAggregateRoute
   '/api/public/site-host': typeof ApiPublicSiteHostRoute
+  '/api/public/tool-detail': typeof ApiPublicToolDetailRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -192,6 +201,7 @@ export interface FileRouteTypes {
     | '/api/admin/generate-tools'
     | '/api/public/chat-aggregate'
     | '/api/public/site-host'
+    | '/api/public/tool-detail'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -211,6 +221,7 @@ export interface FileRouteTypes {
     | '/api/admin/generate-tools'
     | '/api/public/chat-aggregate'
     | '/api/public/site-host'
+    | '/api/public/tool-detail'
   id:
     | '__root__'
     | '/'
@@ -230,6 +241,7 @@ export interface FileRouteTypes {
     | '/api/admin/generate-tools'
     | '/api/public/chat-aggregate'
     | '/api/public/site-host'
+    | '/api/public/tool-detail'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -249,6 +261,7 @@ export interface RootRouteChildren {
   ApiAdminGenerateToolsRoute: typeof ApiAdminGenerateToolsRoute
   ApiPublicChatAggregateRoute: typeof ApiPublicChatAggregateRoute
   ApiPublicSiteHostRoute: typeof ApiPublicSiteHostRoute
+  ApiPublicToolDetailRoute: typeof ApiPublicToolDetailRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -330,6 +343,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ToolsSlugRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/public/tool-detail': {
+      id: '/api/public/tool-detail'
+      path: '/api/public/tool-detail'
+      fullPath: '/api/public/tool-detail'
+      preLoaderRoute: typeof ApiPublicToolDetailRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/public/site-host': {
       id: '/api/public/site-host'
       path: '/api/public/site-host'
@@ -403,6 +423,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiAdminGenerateToolsRoute: ApiAdminGenerateToolsRoute,
   ApiPublicChatAggregateRoute: ApiPublicChatAggregateRoute,
   ApiPublicSiteHostRoute: ApiPublicSiteHostRoute,
+  ApiPublicToolDetailRoute: ApiPublicToolDetailRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

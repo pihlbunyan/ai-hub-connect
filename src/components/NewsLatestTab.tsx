@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "sonner";
-import { RefreshCw, Search, X } from "lucide-react";
+import { Search, X } from "lucide-react";
 import { subscribeContentRefresh } from "@/lib/contentRefresh";
 import { NEWS_POST_SELECT, filterNewsPosts, type NewsPost } from "@/lib/news";
 import { NewsCard } from "@/components/NewsCard";
@@ -13,11 +13,7 @@ import { NewsDetail } from "@/components/NewsDetail";
 import { NewsDetailDialog } from "@/components/NewsDetailDialog";
 import { useIsMobile } from "@/hooks/use-mobile";
 
-type NewsLatestTabProps = {
-  onRefreshingChange?: (refreshing: boolean) => void;
-};
-
-export function NewsLatestTab({ onRefreshingChange }: NewsLatestTabProps) {
+export function NewsLatestTab() {
   const { mode, t } = useApp();
   const isMobile = useIsMobile();
   const [posts, setPosts] = useState<NewsPost[]>([]);
@@ -39,38 +35,26 @@ export function NewsLatestTab({ onRefreshingChange }: NewsLatestTabProps) {
 
   const isSearching = searchQuery.trim().length > 0;
 
-  const loadPosts = useCallback(
-    async (isRefresh = false) => {
-      if (isRefresh) {
-        onRefreshingChange?.(true);
-      } else {
-        setLoading(true);
-      }
-      setError(null);
+  const loadPosts = useCallback(async (background = false) => {
+    if (!background) setLoading(true);
+    setError(null);
 
-      const { data, error: fetchError } = await supabase
-        .from("news_posts")
-        .select(NEWS_POST_SELECT)
-        .order("published_at", { ascending: false })
-        .limit(50);
+    const { data, error: fetchError } = await supabase
+      .from("news_posts")
+      .select(NEWS_POST_SELECT)
+      .order("published_at", { ascending: false })
+      .limit(50);
 
-      if (fetchError) {
-        setError(fetchError.message);
-        setPosts([]);
-        toast.error(fetchError.message);
-        setLoading(false);
-        onRefreshingChange?.(false);
-        return false;
-      }
-
+    if (fetchError) {
+      setError(fetchError.message);
+      setPosts([]);
+      if (!background) toast.error(fetchError.message);
+    } else {
       setPosts(data ?? []);
-      setLoading(false);
-      onRefreshingChange?.(false);
-      if (isRefresh) toast.success("News refreshed");
-      return true;
-    },
-    [onRefreshingChange],
-  );
+    }
+
+    setLoading(false);
+  }, []);
 
   useEffect(() => {
     void loadPosts();
@@ -114,12 +98,8 @@ export function NewsLatestTab({ onRefreshingChange }: NewsLatestTabProps) {
       <div className="rounded-2xl border bg-card p-10 text-center shadow-card">
         <p className="text-lg font-medium">No news yet</p>
         <p className="mt-2 text-sm text-muted-foreground">
-          The news feed is empty. Run discovery from Admin or apply Supabase migrations to seed articles.
+          The news feed is empty. New stories appear here after generation from the Admin panel.
         </p>
-        <Button type="button" variant="outline" className="mt-4 gap-2" onClick={() => void loadPosts()}>
-          <RefreshCw className="h-4 w-4" />
-          Refresh
-        </Button>
       </div>
     );
   }
